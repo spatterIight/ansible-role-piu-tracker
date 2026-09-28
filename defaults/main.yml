@@ -125,6 +125,12 @@ piu_tracker_container_extra_arguments: "{{ piu_tracker_container_extra_arguments
 piu_tracker_container_extra_arguments_auto: []
 piu_tracker_container_extra_arguments_custom: []
 
+# A list of extra arguments to pass to the process inside the container
+# Example: ['--SOME_ARGUMENT']
+piu_tracker_process_extra_arguments: "{{ piu_tracker_process_extra_arguments_auto + piu_tracker_process_extra_arguments_custom }}"
+piu_tracker_process_extra_arguments_auto: []
+piu_tracker_process_extra_arguments_custom: []
+
 # Specifies the value of the `X-XSS-Protection` header
 # Stops pages from loading when they detect reflected cross-site scripting (XSS) attacks.
 #
