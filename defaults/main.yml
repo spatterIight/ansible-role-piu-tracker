@@ -19,7 +19,7 @@ piu_tracker_config_path: "{{ piu_tracker_base_path }}/config"
 piu_tracker_data_path: "{{ piu_tracker_base_path }}/data"
 
 # renovate: datasource=docker depName=ghcr.io/spatteriight/pump-it-up-tracker versioning=semver
-piu_tracker_version: 1.0.1
+piu_tracker_version: 1.1.0
 
 piu_tracker_uid: ""
 piu_tracker_gid: ""
@@ -226,6 +226,10 @@ piu_tracker_player_name: ""
 # full name), `broken` (a stage break), `judgments` (all five of perfect, great,
 # good, bad, miss), `max_combo`, `kcal` and `note`.
 #
+# A failed play whose result screen shows "-" instead of a score is logged with
+# `broken: true` and no score. It may only have `song`, `chart`, `date`, `kcal`
+# and `note`, and never counts as a clear or a personal best.
+#
 # Write numbers without the leading zeros the cabinet shows: YAML reads `031` as
 # the octal number 25. When `judgments` and `max_combo` are both given, the score
 # is checked against them, which catches such mistakes.
@@ -240,6 +244,7 @@ piu_tracker_player_name: ""
 #     judgments: {perfect: 506, great: 31, good: 11, bad: 7, miss: 6}
 #     max_combo: 294
 #     kcal: 31.137
+#   - {song: DUEL, chart: S13, date: 2026-09-08, broken: true}
 piu_tracker_scores: []
 
 # Optional details about songs, keyed by title (matched case-insensitively).

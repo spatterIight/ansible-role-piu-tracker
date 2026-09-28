@@ -64,6 +64,15 @@ piu_tracker_scores:
 
 `song`, `chart` and `date` are required, together with either `score` or both `judgments` and `max_combo` (the score is then worked out from them). Add `broken: true` for a stage break. See [`defaults/main.yml`](../defaults/main.yml) for the details of every key.
 
+A failed play whose result screen shows `-` instead of a score is logged with `broken: true` and no score:
+
+```yaml
+piu_tracker_scores:
+  - {song: DUEL, chart: S13, date: 2026-09-08, broken: true}
+```
+
+Such an entry may only have `song`, `chart`, `date`, `kcal` and `note`. It shows as a failed attempt, and never counts as a clear or a personal best.
+
 >[!IMPORTANT]
 > Write numbers without the leading zeros the cabinet shows: YAML reads `031` as the octal number 25. When `judgments` and `max_combo` are both given, the score is checked against them, which catches such mistakes.
 

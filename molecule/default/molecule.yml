@@ -94,8 +94,8 @@ provisioner:
 
         # Written the way a person would: unquoted dates and times (which YAML
         # turns into date objects), a score with the cabinet's leading zero in
-        # quotes, and a real result screen whose score is checked against its
-        # judgments.
+        # quotes, a real result screen whose score is checked against its
+        # judgments, and a failed play with no score after a clear.
         piu_tracker_scores:
           - song: Big Daddy
             chart: S11
@@ -119,6 +119,7 @@ provisioner:
             date: 2026-09-28
             score: 700000
             broken: true
+          - {song: Conflict, chart: S15, date: 2026-09-28 20:10:00, broken: true, kcal: 12.5}
   env:
     # Workaround for https://github.com/ansible/molecule/issues/4391
     ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/..:/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:~/.ansible/roles
