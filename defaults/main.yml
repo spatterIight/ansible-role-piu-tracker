@@ -19,7 +19,7 @@ piu_tracker_config_path: "{{ piu_tracker_base_path }}/config"
 piu_tracker_data_path: "{{ piu_tracker_base_path }}/data"
 
 # renovate: datasource=docker depName=ghcr.io/spatteriight/pump-it-up-tracker versioning=semver
-piu_tracker_version: 1.1.1
+piu_tracker_version: 1.2.0
 
 piu_tracker_uid: ""
 piu_tracker_gid: ""
@@ -224,7 +224,20 @@ piu_tracker_player_name: ""
 #
 # Optional keys: `score`, `grade`, `plate` (PG, UG, EG, SG, MG, TG, FG, RG or the
 # full name), `broken` (a stage break), `judgments` (all five of perfect, great,
-# good, bad, miss), `max_combo`, `kcal` and `note`.
+# good, bad, miss), `max_combo`, `kcal`, `note`, `version` and `continues`.
+#
+# `version` is the game version the play is from: `phoenix` (the default),
+# `prime2` or `xx`. Scores and grades are kept as that version's result screen
+# showed them, and personal bests are only compared within a version (or
+# versions that score the same way). A Prime 2 or XX play needs a `score`,
+# which can be over 1,000,000, and cannot have a `plate`; its `grade` is optional
+# and not checked.
+#
+# `continues` links a chart to the same step chart in an earlier version, maybe
+# at another level, e.g. `continues: {version: phoenix, chart: S7}` on a play of
+# S8 in a later version. It is enough on one play of the chart. The song page
+# then shows both as one chart, and personal bests carry across the link when
+# both versions score plays the same way.
 #
 # A failed play whose result screen shows "-" instead of a score is logged with
 # `broken: true` and no score. It may only have `song`, `chart`, `date`, `kcal`
@@ -245,6 +258,7 @@ piu_tracker_player_name: ""
 #     max_combo: 294
 #     kcal: 31.137
 #   - {song: DUEL, chart: S13, date: 2026-09-08, broken: true}
+#   - {song: Le Grand Bleu, chart: S7, version: prime2, date: 2025-09-09, score: 1038500, grade: S}
 piu_tracker_scores: []
 
 # Optional details about songs, keyed by title (matched case-insensitively).
