@@ -271,6 +271,13 @@
                     judgments: {perfect: 506, great: 031, good: 011, bad: 7, miss: 6}  # yamllint disable-line rule:octal-values
                     max_combo: 294
 
+            # This play skips fact gathering, but the roles included below
+            # need the distribution facts.
+            - name: Gather the facts the roles need
+              ansible.builtin.setup:
+                gather_subset:
+                  - min
+
             - name: Run the role with the mistake
               ansible.builtin.include_role:
                 name: "{{ role_name }}"
