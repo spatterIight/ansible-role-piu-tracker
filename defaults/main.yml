@@ -271,14 +271,15 @@ piu_tracker_data:
 piu_tracker_data_validation_enabled: true
 
 # The command that validates a candidate data file (`%s` is its path).
-# It runs as root inside a throwaway container without network access or
-# capabilities, because the candidate file is only readable by root.
+# It runs in a throwaway container without network access or capabilities,
+# as the tracker's user: Ansible hands the candidate file over already owned
+# by that user, with the data file's mode.
 piu_tracker_data_validation_command: >-
   {{ devture_systemd_docker_base_host_command_docker }} run --rm
   --network=none
   --cap-drop=ALL
   --read-only
-  --user=0:0
+  --user={{ piu_tracker_uid }}:{{ piu_tracker_gid }}
   --mount type=bind,src=%s,dst=/tmp/tracker.json,readonly
   {{ piu_tracker_container_image }}
   validate /tmp/tracker.json
