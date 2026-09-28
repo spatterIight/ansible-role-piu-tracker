@@ -230,8 +230,9 @@ piu_tracker_player_name: ""
 # `prime2` or `xx`. Scores and grades are kept as that version's result screen
 # showed them, and personal bests are only compared within a version (or
 # versions that score the same way). A Prime 2 or XX play needs a `score`,
-# which can be over 1,000,000 and is checked against the range its judgments
-# allow. It cannot have a `plate`, and its `grade` is optional and not checked.
+# which can be over 1,000,000 and is taken as logged (it only has to be a
+# multiple of 100). It cannot have a `plate`, and its `grade` is optional and
+# not checked.
 # To follow a chart from one version into another, see `lineages` in
 # `piu_tracker_songs`.
 #
