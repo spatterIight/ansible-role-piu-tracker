@@ -78,7 +78,7 @@ MOLECULE_DISTRO=debian13 molecule test --scenario-name default
 By default the scenario pulls the image `piu_tracker_version` points at. To test an image that has not been published yet, build it from a checkout of [pump-it-up-tracker](https://github.com/spatterIight/pump-it-up-tracker) and hand it over as an archive. The role then skips pulling:
 
 ```bash
-docker build --build-arg VERSION=0.1.0 -t pump-it-up-tracker:dev ../pump-it-up-tracker
+docker build --build-arg VERSION=1.0.0 -t pump-it-up-tracker:dev ../pump-it-up-tracker
 docker save pump-it-up-tracker:dev -o /tmp/pump-it-up-tracker.tar
 PIU_TRACKER_MOLECULE_IMAGE_ARCHIVE=/tmp/pump-it-up-tracker.tar molecule test --scenario-name default
 ```
