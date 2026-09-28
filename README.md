@@ -8,21 +8,6 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 This is an [Ansible](https://www.ansible.com/) role which installs [pump-it-up-tracker](https://github.com/spatterIight/pump-it-up-tracker) to run as a [Docker](https://www.docker.com/) container wrapped in a systemd service.
 
-pump-it-up-tracker is a read-only web application for personal tracking of Pump It Up scores. You log each result screen as an entry in `piu_tracker_scores`, and this role turns the entries into the data file the application reads:
-
-```yaml
-piu_tracker_scores:
-  - song: Big Daddy
-    chart: S11
-    date: 2026-09-28
-    score: 938204
-    plate: TG
-    judgments: {perfect: 506, great: 31, good: 11, bad: 7, miss: 6}
-    max_combo: 294
-```
-
-Each run checks the data with the application's own validator before replacing the live file. A typo (such as a score that does not match its judgments) fails the run with a precise message, instead of reaching the running service.
-
 This role *implicitly* depends on:
 
 - [`com.devture.ansible.role.playbook_help`](https://github.com/devture/com.devture.ansible.role.playbook_help)

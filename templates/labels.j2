@@ -20,6 +20,11 @@ the slashless form to it), so, unlike most services, the prefix is not stripped 
 #}
 {% set middlewares = [] %}
 
+{% if piu_tracker_container_labels_middleware_basic_auth_enabled %}
+traefik.http.middlewares.{{ piu_tracker_identifier }}-basic-auth.basicauth.users={{ piu_tracker_container_labels_middleware_basic_auth_users }}
+{% set middlewares = middlewares + [piu_tracker_identifier + '-basic-auth'] %}
+{% endif %}
+
 {% if piu_tracker_container_labels_traefik_additional_request_headers.keys() | length > 0 %}
 {% for name, value in piu_tracker_container_labels_traefik_additional_request_headers.items() %}
 traefik.http.middlewares.{{ piu_tracker_identifier }}-add-request-headers.headers.customrequestheaders.{{ name }}={{ value }}
@@ -33,8 +38,6 @@ traefik.http.middlewares.{{ piu_tracker_identifier }}-add-response-headers.heade
 {% endfor %}
 {% set middlewares = middlewares + [piu_tracker_identifier + '-add-response-headers'] %}
 {% endif %}
-
-{% set middlewares = middlewares + piu_tracker_container_labels_traefik_additional_middlewares_custom %}
 
 traefik.http.routers.{{ piu_tracker_identifier }}.rule={{ piu_tracker_container_labels_traefik_rule }}
 {% if piu_tracker_container_labels_traefik_priority | int > 0 %}

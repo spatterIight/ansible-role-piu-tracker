@@ -98,20 +98,19 @@ piu_tracker_container_labels_traefik_additional_response_headers_auto: |
     {}
     | combine ({'X-XSS-Protection': piu_tracker_http_header_xss_protection} if piu_tracker_http_header_xss_protection else {})
     | combine ({'X-Content-Type-Options': piu_tracker_http_header_content_type_options} if piu_tracker_http_header_content_type_options else {})
+    | combine ({'Content-Security-Policy': piu_tracker_http_header_content_security_policy} if piu_tracker_http_header_content_security_policy else {})
     | combine ({'Permissions-Policy': piu_tracker_http_header_permissions_policy} if piu_tracker_http_header_permissions_policy else {})
     | combine ({'Strict-Transport-Security': piu_tracker_http_header_strict_transport_security} if piu_tracker_http_header_strict_transport_security and piu_tracker_container_labels_traefik_tls else {})
   }}
 piu_tracker_container_labels_traefik_additional_response_headers_custom: {}
 
-# Additional Traefik middlewares to apply to the tracker's router, by name.
-# Use this to put authentication in front of the tracker, which has none of its own.
-#
-# Example (with the middleware itself defined through `piu_tracker_container_labels_additional_labels_custom`):
-# piu_tracker_container_labels_additional_labels_custom:
-#   - "traefik.http.middlewares.piu-tracker-auth.basicauth.users=USER:HASH"
-# piu_tracker_container_labels_traefik_additional_middlewares_custom:
-#   - piu-tracker-auth
-piu_tracker_container_labels_traefik_additional_middlewares_custom: []
+# Controls whether Basic Authentication is enabled in front of the tracker, which has no login of its own.
+piu_tracker_container_labels_middleware_basic_auth_enabled: false
+
+# The users allowed through Basic Authentication, as a comma-separated list of `user:hashed-password`
+# entries (e.g. generated with `htpasswd -nB USER`).
+# See: https://doc.traefik.io/traefik/middlewares/http/basicauth/#users
+piu_tracker_container_labels_middleware_basic_auth_users: ""
 
 # piu_tracker_container_labels_additional_labels contains a multiline string with additional labels to add to the container label file.
 # See `../templates/labels.j2` for details.
@@ -141,6 +140,10 @@ piu_tracker_http_header_xss_protection: "1; mode=block"
 # Specifies the value of the `X-Content-Type-Options` header.
 # See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options
 piu_tracker_http_header_content_type_options: nosniff
+
+# Specifies the value of the `Content-Security-Policy` header.
+# See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy
+piu_tracker_http_header_content_security_policy: frame-ancestors 'self'
 
 # Specifies the value of the `Permissions-Policy` header.
 # See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Permissions-Policy
@@ -207,12 +210,6 @@ piu_tracker_container_cleanup_command: |
   done;
   echo "Failed to remove stale container {{ piu_tracker_identifier }} after {{ piu_tracker_container_cleanup_timeout_seconds }} attempts" >&2;
   exit 1
-
-########################################################################
-#                                                                      #
-# Score data                                                           #
-#                                                                      #
-########################################################################
 
 # The player name shown in the header. Leave empty to show none.
 piu_tracker_player_name: ""
@@ -283,12 +280,6 @@ piu_tracker_data_validation_command: >-
   --mount type=bind,src=%s,dst=/tmp/tracker.json,readonly
   {{ piu_tracker_container_image }}
   validate /tmp/tracker.json
-
-########################################################################
-#                                                                      #
-# Jacket art                                                           #
-#                                                                      #
-########################################################################
 
 # Controls whether jacket art is downloaded from the internet.
 # When disabled, only images in `piu_tracker_custom_art_path` are used and

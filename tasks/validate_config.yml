@@ -73,6 +73,15 @@
         - piu_tracker_container_labels_traefik_hostname
         - piu_tracker_container_labels_traefik_path_prefix
 
+    - name: Fail if Basic Authentication is enabled without users for pump-it-up-tracker
+      ansible.builtin.fail:
+        msg: >-
+          You need to define `piu_tracker_container_labels_middleware_basic_auth_users`
+          when `piu_tracker_container_labels_middleware_basic_auth_enabled` is enabled.
+      when:
+        - piu_tracker_container_labels_middleware_basic_auth_enabled | bool
+        - piu_tracker_container_labels_middleware_basic_auth_users | string | length == 0
+
     - name: Fail if piu_tracker_container_labels_traefik_path_prefix ends with a slash
       ansible.builtin.fail:
         msg: >-
