@@ -82,8 +82,11 @@
         - piu_tracker_container_labels_traefik_middleware_basic_auth_enabled | bool
         - piu_tracker_container_labels_traefik_middleware_basic_auth_users | string | length == 0
 
-    - name: Fail if piu_tracker_container_labels_traefik_path_prefix ends with a slash
+    # The application serves itself under piu_tracker_path_prefix and the prefix is not stripped,
+    # so the router has to match that same prefix.
+    - name: Fail if piu_tracker_container_labels_traefik_path_prefix differs from piu_tracker_path_prefix
       ansible.builtin.fail:
         msg: >-
-          piu_tracker_container_labels_traefik_path_prefix (`{{ piu_tracker_container_labels_traefik_path_prefix }}`) must either be `/` or not end with a slash (e.g. `/piu`).
-      when: "piu_tracker_container_labels_traefik_path_prefix != '/' and piu_tracker_container_labels_traefik_path_prefix[-1] == '/'"
+          piu_tracker_container_labels_traefik_path_prefix (`{{ piu_tracker_container_labels_traefik_path_prefix }}`)
+          must be the same as piu_tracker_path_prefix (`{{ piu_tracker_path_prefix }}`), which the application serves itself under.
+      when: piu_tracker_container_labels_traefik_path_prefix != piu_tracker_path_prefix

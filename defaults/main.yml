@@ -76,7 +76,7 @@ piu_tracker_container_additional_volumes_custom: []
 piu_tracker_container_labels_traefik_enabled: true
 piu_tracker_container_labels_traefik_docker_network: "{{ piu_tracker_container_network }}"
 piu_tracker_container_labels_traefik_hostname: "{{ piu_tracker_hostname }}"
-# The path prefix must either be `/` or not end with a slash (e.g. `/piu`).
+# Must be the same as `piu_tracker_path_prefix`, since the application serves itself under it.
 piu_tracker_container_labels_traefik_path_prefix: "{{ piu_tracker_path_prefix }}"
 piu_tracker_container_labels_traefik_rule: "Host(`{{ piu_tracker_container_labels_traefik_hostname }}`){% if piu_tracker_container_labels_traefik_path_prefix != '/' %} && PathPrefix(`{{ piu_tracker_container_labels_traefik_path_prefix }}`){% endif %}"
 piu_tracker_container_labels_traefik_priority: 0
