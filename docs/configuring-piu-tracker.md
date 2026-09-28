@@ -106,16 +106,6 @@ To use your own images instead, set `piu_tracker_custom_art_path` to a directory
 piu_tracker_art_fetch_enabled: false
 ```
 
-### Enable Basic Authentication (optional)
-
-pump-it-up-tracker has no login of its own. To put [Basic Authentication](https://doc.traefik.io/traefik/middlewares/http/basicauth/) in front of it, add the following configuration to your `vars.yml` file. The users can be generated with `htpasswd -nB USER`.
-
-```yaml
-piu_tracker_container_labels_middleware_basic_auth_enabled: true
-
-piu_tracker_container_labels_middleware_basic_auth_users: "USER:HASHED_PASSWORD"
-```
-
 ### Extending the configuration
 
 There are some additional things you may wish to configure about the service.
