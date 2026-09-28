@@ -1,0 +1,126 @@
+# SPDX-FileCopyrightText: 2026 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2026 Suguru Hirahara
+# SPDX-FileCopyrightText: 2026 spatterlight
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+    force: true
+driver:
+  name: docker
+platforms:
+  - name: piu-tracker-${MOLECULE_DISTRO:-ubuntu2604}-default
+    image: "geerlingguy/docker-${MOLECULE_DISTRO:-ubuntu2604}-ansible:latest"
+    command: ${MOLECULE_DOCKER_COMMAND:-""}
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    privileged: true
+    pre_build_image: true
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      callback_result_format: yaml
+  inventory:
+    group_vars:
+      all:
+        # Helper variables
+        piu_tracker_debug_service_enabled: false
+        piu_tracker_restarts_check_enabled: true
+
+        # The port on the test host that the tracker is published on.
+        # Deliberately different from the port it listens on inside the
+        # container, so that a mix-up between the two cannot go unnoticed.
+        piu_tracker_molecule_bind_port: 39081
+
+        # An image archive (`docker save`) on the machine running Molecule.
+        # When set, prepare.yml loads it into the test host under the name the
+        # role uses, and the role skips pulling. This tests an image that has
+        # not been published yet:
+        #
+        #   docker build --build-arg VERSION=<piu_tracker_version> -t piu:dev ../pump-it-up-tracker
+        #   docker save piu:dev -o /tmp/piu.tar
+        #   PIU_TRACKER_MOLECULE_IMAGE_ARCHIVE=/tmp/piu.tar molecule test
+        piu_tracker_molecule_image_archive: "{{ lookup('env', 'PIU_TRACKER_MOLECULE_IMAGE_ARCHIVE') }}"
+        devture_systemd_docker_base_container_image_pull_method: "{{ 'none' if piu_tracker_molecule_image_archive else 'ansible-module' }}"
+
+        # Holds the user's own jacket art, created by prepare.yml.
+        piu_tracker_molecule_custom_art_marker: molecule-custom-art
+
+        piu_tracker_uid: 1000
+        piu_tracker_gid: 1000
+
+        # Pinned to a literal value, because `verify.yml` reads files underneath
+        # it and cannot resolve the role's own default, which derives from
+        # `piu_tracker_identifier`.
+        piu_tracker_base_path: /piu-tracker
+        piu_tracker_custom_art_path: /opt/piu-tracker-molecule-art
+
+        piu_tracker_hostname: piu.molecule.local
+
+        # Served under a prefix, which the application handles itself.
+        piu_tracker_path_prefix: /piu
+
+        # Deliberately not the image's own default of 8080: the port only
+        # reaches the process through the environment file this role renders,
+        # and the image's healthcheck only finds it the same way.
+        piu_tracker_container_http_port: 8081
+        piu_tracker_container_http_bind_port: "127.0.0.1:{{ piu_tracker_molecule_bind_port }}"
+
+        piu_tracker_container_labels_traefik_enabled: false
+
+        piu_tracker_container_extra_arguments_custom:
+          - "--env PIU_TRACKER_MOLECULE_EXTRA_ARGUMENT=present"
+
+        # Keeps the scenario from depending on the art sources being reachable.
+        piu_tracker_art_fetch_enabled: false
+
+        piu_tracker_timezone: Europe/London
+        piu_tracker_log_level: debug
+
+        piu_tracker_player_name: MOLECULE
+
+        piu_tracker_songs:
+          Big Daddy:
+            image: big-daddy.svg
+          Conflict:
+            artist: Siromaru + Cranky
+            bpm: 160
+
+        # Written the way a person would: unquoted dates and times (which YAML
+        # turns into date objects), a score with the cabinet's leading zero in
+        # quotes, and a real result screen whose score is checked against its
+        # judgments.
+        piu_tracker_scores:
+          - song: Big Daddy
+            chart: S11
+            date: 2026-08-23
+            score: 902311
+            plate: FG
+          - song: Conflict
+            chart: S15
+            date: 2026-09-20 19:05:00
+            score: "0880430"
+          - song: Big Daddy
+            chart: S11
+            date: 2026-09-28
+            score: 938204
+            plate: TG
+            judgments: {perfect: 506, great: 31, good: 11, bad: 7, miss: 6}
+            max_combo: 294
+            kcal: 31.137
+          - song: Conflict
+            chart: D13
+            date: 2026-09-28
+            score: 700000
+            broken: true
+  env:
+    # Workaround for https://github.com/ansible/molecule/issues/4391
+    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/..:/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:~/.ansible/roles
+verifier:
+  name: ansible

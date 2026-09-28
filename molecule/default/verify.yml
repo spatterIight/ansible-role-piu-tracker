@@ -1,0 +1,384 @@
+# SPDX-FileCopyrightText: 2026 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2026 Suguru Hirahara
+# SPDX-FileCopyrightText: 2026 spatterlight
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+- name: Verify pump-it-up-tracker
+  hosts: all
+  become: true
+  gather_facts: false
+
+  vars:
+    piu_tracker_molecule_base_url: "http://127.0.0.1:{{ piu_tracker_molecule_bind_port }}"
+    piu_tracker_molecule_app_url: "{{ piu_tracker_molecule_base_url }}{{ piu_tracker_path_prefix }}"
+    piu_tracker_molecule_data_file: "{{ piu_tracker_base_path }}/config/tracker.json"
+    piu_tracker_molecule_labels_path: "{{ piu_tracker_base_path }}/labels"
+
+  tasks:
+    - name: Verify that pump-it-up-tracker works
+      block:
+        # The role is not included in this playbook (until the last check), so
+        # its defaults are not in scope. Reading defaults/main.yml directly ties
+        # the version assertion below to it.
+        - name: Load the role defaults
+          ansible.builtin.include_vars:
+            file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
+            name: piu_tracker_defaults
+
+        - name: Wait for the pump-it-up-tracker systemd service to become active (up to 120s)
+          ansible.builtin.systemd_service:
+            name: piu-tracker.service
+          register: piu_tracker_service
+          until: piu_tracker_service.status.ActiveState == 'active'
+          retries: 24
+          delay: 5
+          failed_when: false
+
+        # `Restart=always` in the systemd unit means that even a container which
+        # crashes and gets restarted reads as active here, so this is a
+        # precondition rather than a result.
+        - name: Assert the pump-it-up-tracker systemd service is active
+          ansible.builtin.assert:
+            that: piu_tracker_service.status.ActiveState == 'active'
+            fail_msg: "piu-tracker.service is {{ piu_tracker_service.status.ActiveState }}"
+            success_msg: "piu-tracker.service is active"
+
+        - name: Retrieve the pump-it-up-tracker systemd service log for debugging
+          when: piu_tracker_debug_service_enabled | bool
+          ansible.builtin.command:
+            cmd: journalctl --no-pager --output=cat --unit=piu-tracker.service
+          changed_when: false
+
+        # The application only listens on 8081 because the environment file
+        # this role renders says so, and 39081 only reaches it through the port
+        # publishing in the systemd unit. /healthz is served outside the path
+        # prefix, for the container healthcheck.
+        - name: Wait for pump-it-up-tracker to answer its health endpoint (up to 120s)
+          ansible.builtin.uri:
+            url: "{{ piu_tracker_molecule_base_url }}/healthz"
+            return_content: true
+          register: piu_tracker_health
+          until: piu_tracker_health.status | default(0) == 200
+          retries: 24
+          delay: 5
+
+        # The image's healthcheck finds the port through the same environment
+        # variable, so a healthy container also proves the environment file
+        # reaches the process as a whole.
+        - name: Wait for the pump-it-up-tracker container to become healthy (up to 120s)
+          ansible.builtin.command:
+            argv:
+              - docker
+              - inspect
+              - --format
+              - "{% raw %}{{ .State.Health.Status }}{% endraw %}"
+              - piu-tracker
+          register: piu_tracker_container_health
+          until: piu_tracker_container_health.stdout | trim == 'healthy'
+          retries: 24
+          delay: 5
+          changed_when: false
+          failed_when: false
+
+        - name: Assert the pump-it-up-tracker container healthcheck passes
+          ansible.builtin.assert:
+            that: piu_tracker_container_health.stdout | trim == 'healthy'
+            fail_msg: "The container is {{ piu_tracker_container_health.stdout | trim | default('unknown', true) }}, expected healthy"
+            success_msg: "The pump-it-up-tracker container healthcheck passes"
+
+        # What the application actually loaded from the data file this role
+        # rendered from `piu_tracker_scores` and `piu_tracker_songs`.
+        - name: Retrieve the loaded data summary
+          ansible.builtin.uri:
+            url: "{{ piu_tracker_molecule_app_url }}/api/data.json"
+            return_content: true
+          register: piu_tracker_api
+
+        - name: Parse the loaded data summary
+          ansible.builtin.set_fact:
+            piu_tracker_molecule_api: "{{ piu_tracker_api.content | from_json }}"
+
+        - name: Parse the loaded songs
+          ansible.builtin.set_fact:
+            piu_tracker_molecule_big_daddy: "{{ piu_tracker_molecule_api.songs | selectattr('slug', 'equalto', 'big-daddy') | first }}"
+            piu_tracker_molecule_conflict: "{{ piu_tracker_molecule_api.songs | selectattr('slug', 'equalto', 'conflict') | first }}"
+
+        - name: Assert the running application is the version this role installs
+          ansible.builtin.assert:
+            that: piu_tracker_molecule_api.version == piu_tracker_defaults.piu_tracker_version | string
+            fail_msg: "The application reports {{ piu_tracker_molecule_api.version }}, expected {{ piu_tracker_defaults.piu_tracker_version }}"
+            success_msg: "The application reports {{ piu_tracker_molecule_api.version }}"
+
+        - name: Assert every score entry was loaded
+          ansible.builtin.assert:
+            that:
+              - piu_tracker_molecule_api.player == piu_tracker_player_name
+              - piu_tracker_molecule_api.stats.plays == piu_tracker_scores | length
+              - piu_tracker_molecule_api.stats.songs == 2
+              - piu_tracker_molecule_api.stats.highest_single == 15
+              # D13 is a stage break, so no double has been cleared.
+              - piu_tracker_molecule_api.stats.highest_double == 0
+            fail_msg: "The application loaded {{ piu_tracker_molecule_api.stats }} for player {{ piu_tracker_molecule_api.player }}"
+            success_msg: "The application loaded all {{ piu_tracker_scores | length }} plays"
+
+        # The unquoted dates and the quoted, zero-padded score only come out
+        # right if they survived Ansible's YAML parsing and the JSON rendering.
+        - name: Assert personal bests, dates and plates came through intact
+          ansible.builtin.assert:
+            that:
+              - piu_tracker_molecule_big_daddy.charts | length == 1
+              - piu_tracker_molecule_big_daddy.charts[0].chart == 'S11'
+              - piu_tracker_molecule_big_daddy.charts[0].plays == 2
+              - piu_tracker_molecule_big_daddy.charts[0].best.score == 938204
+              - piu_tracker_molecule_big_daddy.charts[0].best.grade == 'AA+'
+              - piu_tracker_molecule_big_daddy.charts[0].best.plate == 'TG'
+              - piu_tracker_molecule_big_daddy.charts[0].best.date == '2026-09-28'
+              - piu_tracker_molecule_conflict.artist == 'Siromaru + Cranky'
+              - piu_tracker_molecule_conflict.charts | map(attribute='chart') | list == ['S15', 'D13']
+              - piu_tracker_molecule_conflict.charts[0].best.score == 880430
+              - piu_tracker_molecule_conflict.charts[0].best.date == '2026-09-20'
+              - not piu_tracker_molecule_conflict.charts[1].cleared
+            fail_msg: "Unexpected songs: {{ piu_tracker_molecule_api.songs }}"
+            success_msg: "Personal bests, dates and plates came through intact"
+
+        # With fetching disabled, art only comes from `piu_tracker_custom_art_path`.
+        - name: Assert jacket art comes from the custom art directory
+          ansible.builtin.assert:
+            that:
+              - piu_tracker_molecule_big_daddy.art == 'image'
+              - piu_tracker_molecule_conflict.art == 'placeholder'
+              - piu_tracker_molecule_api.art.resolved == 1
+              - piu_tracker_molecule_api.art.pending == 0
+            fail_msg: "Unexpected art status: {{ piu_tracker_molecule_api.art }}"
+            success_msg: "Custom art is used, and the song without any shows a placeholder"
+
+        - name: Retrieve the custom jacket art through the application
+          ansible.builtin.uri:
+            url: "{{ piu_tracker_molecule_app_url }}/art/big-daddy"
+            return_content: true
+          register: piu_tracker_art
+
+        - name: Assert the custom jacket art is served
+          ansible.builtin.assert:
+            that: piu_tracker_molecule_custom_art_marker in piu_tracker_art.content
+            fail_msg: "/art/big-daddy did not serve the custom image"
+            success_msg: "The custom image is served for Big Daddy"
+
+        - name: Retrieve a song page
+          ansible.builtin.uri:
+            url: "{{ piu_tracker_molecule_app_url }}/song/big-daddy"
+            return_content: true
+          register: piu_tracker_song_page
+
+        - name: Assert the song page shows the result screen
+          ansible.builtin.assert:
+            that:
+              - "'938,204' in piu_tracker_song_page.content"
+              - "'Talented Game' in piu_tracker_song_page.content"
+              - "'href=\"' ~ piu_tracker_path_prefix ~ '/activity\"' in piu_tracker_song_page.content"
+            fail_msg: "The song page does not show the Big Daddy result screen under {{ piu_tracker_path_prefix }}"
+            success_msg: "The song page shows the result screen, with links under {{ piu_tracker_path_prefix }}"
+
+        - name: Request the path prefix without its trailing slash
+          ansible.builtin.uri:
+            url: "{{ piu_tracker_molecule_app_url }}"
+            follow_redirects: none
+            status_code: [301]
+          register: piu_tracker_slashless
+
+        - name: Assert the slashless prefix redirects
+          ansible.builtin.assert:
+            that: piu_tracker_slashless.location | default('') is search(piu_tracker_path_prefix ~ '/$')
+            fail_msg: "{{ piu_tracker_path_prefix }} redirected to {{ piu_tracker_slashless.location | default('nowhere') }}"
+            success_msg: "{{ piu_tracker_path_prefix }} redirects to {{ piu_tracker_path_prefix }}/"
+
+        - name: Inspect the pump-it-up-tracker container
+          ansible.builtin.command:
+            cmd: docker container inspect piu-tracker
+          changed_when: false
+          register: piu_tracker_inspect_result
+
+        - name: Parse the pump-it-up-tracker container's configuration
+          ansible.builtin.set_fact:
+            piu_tracker_container: "{{ (piu_tracker_inspect_result.stdout | from_json)[0] }}"
+
+        - name: Collect the mounts the role asked for
+          ansible.builtin.set_fact:
+            piu_tracker_molecule_mounts: "{{ dict(piu_tracker_container.Mounts | map(attribute='Destination') | zip(piu_tracker_container.Mounts)) }}"
+
+        - name: Assert the container runs locked down, with the data file read-only
+          ansible.builtin.assert:
+            that:
+              - piu_tracker_container.HostConfig.ReadonlyRootfs
+              - "'ALL' in piu_tracker_container.HostConfig.CapDrop"
+              - piu_tracker_container.Config.User == '1000:1000'
+              - not piu_tracker_molecule_mounts['/config'].RW
+              - piu_tracker_molecule_mounts['/config'].Source == piu_tracker_base_path ~ '/config'
+              - piu_tracker_molecule_mounts['/data'].RW
+              - not piu_tracker_molecule_mounts['/art'].RW
+              - piu_tracker_molecule_mounts['/art'].Source == piu_tracker_custom_art_path
+            fail_msg: "Unexpected container configuration: {{ piu_tracker_container.HostConfig }} {{ piu_tracker_container.Mounts }}"
+            success_msg: "The container runs read-only, without capabilities, as 1000:1000, with the data file mounted read-only"
+
+        - name: Assert the extra container arguments reach the container
+          ansible.builtin.assert:
+            that: "'PIU_TRACKER_MOLECULE_EXTRA_ARGUMENT=present' in piu_tracker_container.Config.Env"
+            fail_msg: "piu_tracker_container_extra_arguments did not reach the container: {{ piu_tracker_container.Config.Env }}"
+            success_msg: "piu_tracker_container_extra_arguments reach the container"
+
+        # This scenario runs with `piu_tracker_container_labels_traefik_enabled`
+        # false. Every Traefik label the role emits has to be behind that switch.
+        - name: Read the rendered container label file
+          ansible.builtin.slurp:
+            src: "{{ piu_tracker_molecule_labels_path }}"
+          register: piu_tracker_labels_file
+
+        - name: Assert no Traefik labels are emitted while Traefik is disabled
+          vars:
+            piu_tracker_molecule_traefik_labels: >-
+              {{ (piu_tracker_labels_file.content | b64decode).splitlines() | select('match', '^traefik[.]') | list }}
+          ansible.builtin.assert:
+            that: piu_tracker_molecule_traefik_labels | length == 0
+            fail_msg: "Traefik labels were emitted with Traefik disabled: {{ piu_tracker_molecule_traefik_labels }}"
+            success_msg: "No Traefik labels are emitted while Traefik is disabled"
+
+        - name: Verify a data file with a mistake in it is refused
+          block:
+            - name: Record the data file and service before the attempt
+              ansible.builtin.stat:
+                path: "{{ piu_tracker_molecule_data_file }}"
+              register: piu_tracker_molecule_data_before
+
+            - name: Record the service's restart counter before the attempt
+              ansible.builtin.systemd_service:
+                name: piu-tracker.service
+              register: piu_tracker_molecule_service_before
+
+            # Copied from a result screen the way the cabinet prints it: YAML
+            # reads the zero-padded 031 and 011 as the octal numbers 25 and 9,
+            # so the judgments no longer add up to the score.
+            - name: Prepare scores with a transcription mistake
+              ansible.builtin.set_fact:
+                piu_tracker_molecule_bad_scores: "{{ piu_tracker_scores + piu_tracker_molecule_bad_entry }}"
+              vars:
+                piu_tracker_molecule_bad_entry:
+                  - song: Big Daddy
+                    chart: S11
+                    date: "2026-09-29"
+                    score: 938204
+                    judgments: {perfect: 506, great: 031, good: 011, bad: 7, miss: 6}  # yamllint disable-line rule:octal-values
+                    max_combo: 294
+
+            # This play skips fact gathering, but the roles included below
+            # need the distribution facts.
+            - name: Gather the facts the roles need
+              ansible.builtin.setup:
+                gather_subset:
+                  - min
+
+            - name: Run the role with the mistake
+              ansible.builtin.include_role:
+                name: "{{ role_name }}"
+                public: true
+              loop:
+                - com.devture.ansible.role.playbook_help
+                - com.devture.ansible.role.systemd_docker_base
+                - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+              loop_control:
+                loop_var: role_name
+              vars:
+                piu_tracker_scores: "{{ piu_tracker_molecule_bad_scores }}"
+
+            - name: Fail because the mistake was not caught
+              ansible.builtin.fail:
+                msg: The role installed a data file whose score does not match its judgments.
+
+          rescue:
+            # The copy module reports "failed to validate" and passes the
+            # validator's own explanation on as stderr.
+            - name: Assert the role was stopped by the application's own validation
+              ansible.builtin.assert:
+                that:
+                  - ansible_failed_task.name == 'Ensure pump-it-up-tracker data file is installed'
+                  - "'scores[4] (Big Daddy S11): score 938204 does not match' in ansible_failed_result.stderr | default('')"
+                  - "'octal' in ansible_failed_result.stderr | default('')"
+                fail_msg: "Unexpected failure in {{ ansible_failed_task.name }}: {{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default(ansible_failed_result)) }}"
+                success_msg: "The role refused the data file: {{ ansible_failed_result.stderr }}"
+
+        - name: Record the data file and service after the attempt
+          ansible.builtin.stat:
+            path: "{{ piu_tracker_molecule_data_file }}"
+          register: piu_tracker_molecule_data_after
+
+        - name: Record the service's restart counter after the attempt
+          ansible.builtin.systemd_service:
+            name: piu-tracker.service
+          register: piu_tracker_molecule_service_after
+
+        - name: Assert the refused data file left the installed one and the service alone
+          ansible.builtin.assert:
+            that:
+              - piu_tracker_molecule_data_after.stat.checksum == piu_tracker_molecule_data_before.stat.checksum
+              - piu_tracker_molecule_service_after.status.ActiveState == 'active'
+              - piu_tracker_molecule_service_after.status.NRestarts == piu_tracker_molecule_service_before.status.NRestarts
+              - piu_tracker_molecule_service_after.status.InvocationID == piu_tracker_molecule_service_before.status.InvocationID
+            fail_msg: "The refused data file changed what was installed or running"
+            success_msg: "The installed data file and the running service are untouched"
+
+        - name: Verify nothing was quietly restarting while all of that was being checked
+          when: piu_tracker_restarts_check_enabled | bool
+          block:
+            - name: Sample the restart counter
+              ansible.builtin.systemd_service:
+                name: piu-tracker.service
+              register: piu_tracker_restarts_before
+
+            # Comfortably longer than the unit's `RestartSec=30`, so a crash loop
+            # has to tick at least once inside the window.
+            - name: Watch the service for 45 seconds
+              ansible.builtin.pause:
+                seconds: 45
+
+            - name: Sample the restart counter again
+              ansible.builtin.systemd_service:
+                name: piu-tracker.service
+              register: piu_tracker_restarts_after
+
+            - name: Assert the service did not restart while it was up
+              ansible.builtin.assert:
+                that:
+                  - piu_tracker_restarts_after.status.NRestarts == piu_tracker_restarts_before.status.NRestarts
+                  - piu_tracker_restarts_after.status.ActiveState == 'active'
+                fail_msg: >-
+                  The service restarted while it was supposedly up ({{ piu_tracker_restarts_before.status.NRestarts }}
+                  restarts before, {{ piu_tracker_restarts_after.status.NRestarts }} after), so `active` was hiding a crash loop.
+                success_msg: "The service did not restart over 45 seconds of watching"
+
+        - name: Show the pump-it-up-tracker verification summary
+          ansible.builtin.debug:
+            msg:
+              - "Version: {{ piu_tracker_molecule_api.version }}"
+              - "Loaded: {{ piu_tracker_molecule_api.stats }}"
+              - "Art: {{ piu_tracker_molecule_api.art }}"
+              - "Container health: {{ piu_tracker_container_health.stdout | trim }}"
+
+      rescue:
+        # Whatever went wrong, the reason is almost always in the systemd service log.
+        - name: Retrieve the pump-it-up-tracker systemd service log
+          ansible.builtin.command:
+            cmd: journalctl --no-pager --output=cat --unit=piu-tracker.service
+          register: piu_tracker_service_log
+          changed_when: false
+
+        - name: Show the pump-it-up-tracker systemd service log
+          ansible.builtin.debug:
+            var: piu_tracker_service_log.stdout_lines
+
+        - name: Fail because verification did not pass
+          ansible.builtin.fail:
+            msg: >-
+              pump-it-up-tracker verification failed in "{{ ansible_failed_task.name | default('?') }}":
+              {{ ansible_failed_result.msg | default(ansible_failed_result) }}.
+              The systemd service log is printed above.

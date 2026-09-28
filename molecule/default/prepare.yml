@@ -1,0 +1,79 @@
+# SPDX-FileCopyrightText: 2026 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2026 Suguru Hirahara
+# SPDX-FileCopyrightText: 2026 spatterlight
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+- name: Prepare pump-it-up-tracker Molecule tests
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Ensure apt cache is updated for pump-it-up-tracker Molecule tests preparation
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 600
+      when: ansible_facts["os_family"] == 'Debian'
+
+    - name: Ensure required packages are installed for pump-it-up-tracker Molecule tests preparation
+      ansible.builtin.package:
+        name:
+          - python3-requests
+          # The storage driver below. Docker in a container cannot use the
+          # host's overlayfs, and fuse-overlayfs is several times faster than
+          # falling back to vfs.
+          - fuse-overlayfs
+        state: present
+
+    - name: Ensure Docker is installed for pump-it-up-tracker Molecule tests preparation
+      ansible.builtin.include_role:
+        name: ansible-role-docker
+      vars:
+        docker_daemon_options:
+          storage-driver: fuse-overlayfs
+
+    # Mounted into the container through `piu_tracker_custom_art_path`, and
+    # named by the Big Daddy entry of `piu_tracker_songs`. An SVG, so that it
+    # can be written as text and recognised again in verify.yml.
+    - name: Ensure the custom jacket art directory exists
+      ansible.builtin.file:
+        path: "{{ piu_tracker_custom_art_path }}"
+        state: directory
+        mode: "0755"
+
+    - name: Ensure a custom jacket image exists
+      ansible.builtin.copy:
+        dest: "{{ piu_tracker_custom_art_path }}/big-daddy.svg"
+        content: |
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 393"><desc>{{ piu_tracker_molecule_custom_art_marker }}</desc><rect width="700" height="393" fill="#123"/></svg>
+        mode: "0644"
+
+    - name: Load a locally built pump-it-up-tracker image
+      when: piu_tracker_molecule_image_archive | length > 0
+      block:
+        - name: Copy the image archive to the test host
+          ansible.builtin.copy:
+            src: "{{ piu_tracker_molecule_image_archive }}"
+            dest: /tmp/pump-it-up-tracker-image.tar
+            mode: "0644"
+
+        - name: Load the image archive
+          ansible.builtin.command:
+            cmd: docker load --input /tmp/pump-it-up-tracker-image.tar
+          register: piu_tracker_molecule_image_load
+          changed_when: true
+
+        # `docker load` prints the name the image was saved under.
+        - name: Tag the loaded image with the name the role uses
+          vars:
+            piu_tracker_molecule_loaded_image: "{{ piu_tracker_molecule_image_load.stdout | regex_search('Loaded image: (\\S+)', '\\1') | first }}"
+            # The role's defaults are not in scope here, so the version is read from them directly.
+            piu_tracker_molecule_defaults: "{{ lookup('file', lookup('env', 'MOLECULE_PROJECT_DIRECTORY') + '/defaults/main.yml') | from_yaml }}"
+          ansible.builtin.command:
+            argv:
+              - docker
+              - tag
+              - "{{ piu_tracker_molecule_loaded_image }}"
+              - "ghcr.io/spatteriight/pump-it-up-tracker:{{ piu_tracker_molecule_defaults.piu_tracker_version }}"
+          changed_when: true
