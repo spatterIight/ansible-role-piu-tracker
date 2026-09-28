@@ -81,11 +81,11 @@ piu_tracker_scores:
     chart: S7
     version: prime2
     date: 2025-09-09
-    score: 1038500             # required for Prime 2 and XX, and can be over 1,000,000
+    score: 1038500             # required for Prime 2 and XX; can be over 1,000,000
     grade: S                   # optional, shown as logged; there are no plates
 ```
 
-Scores and grades are kept as each version's result screen showed them, and a chart of one version is a different chart from the same level of another. The front page's headline stats cover the newest version you have played. To follow a chart into a newer version, possibly at another level, link it with `continues` on one of its plays, e.g. `continues: {version: phoenix, chart: S7}` on a play of that chart's S8 in a later version. See the project's [README](https://github.com/spatterIight/pump-it-up-tracker#game-versions) for what each version checks and how personal bests carry across a link.
+Scores and grades are kept as each version's result screen showed them, and a chart of one version is a different chart from the same level of another. The front page's headline stats cover the newest version you have played. To follow a chart into a newer version, possibly at another level, link the two in the song's details (see below). See the project's [README](https://github.com/spatterIight/pump-it-up-tracker#game-versions) for what each version checks and how personal bests carry across a link.
 
 >[!IMPORTANT]
 > Write numbers without the leading zeros the cabinet shows: YAML reads `031` as the octal number 25. When `judgments` and `max_combo` are both given, the score is checked against them, which catches such mistakes.
@@ -117,7 +117,12 @@ piu_tracker_songs:
     bpm: 160
   Big Daddy:
     image: https://www.piugame.com/data/song_img/<id>.png
+  Katkoi:
+    lineages:
+      - {prime2: S7, phoenix: S7}
 ```
+
+`lineages` links a song's charts that are the same step chart in different game versions, possibly at different levels: each maps a version to the chart as that version labels it. The song page then shows them as one chart. See the project's [README](https://github.com/spatterIight/pump-it-up-tracker#chart-continuity) for the details.
 
 ### Configure jacket art (optional)
 
