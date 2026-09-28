@@ -104,6 +104,9 @@
           ansible.builtin.set_fact:
             piu_tracker_molecule_big_daddy: "{{ piu_tracker_molecule_api.songs | selectattr('slug', 'equalto', 'big-daddy') | first }}"
             piu_tracker_molecule_conflict: "{{ piu_tracker_molecule_api.songs | selectattr('slug', 'equalto', 'conflict') | first }}"
+            piu_tracker_molecule_le_grand_bleu: "{{ piu_tracker_molecule_api.songs | selectattr('slug', 'equalto', 'le-grand-bleu') | first }}"
+            # Plays without a `version` are from Phoenix.
+            piu_tracker_molecule_phoenix_scores: "{{ piu_tracker_scores | rejectattr('version', 'defined') | list }}"
 
         - name: Assert the running application is the version this role installs
           ansible.builtin.assert:
@@ -111,19 +114,45 @@
             fail_msg: "The application reports {{ piu_tracker_molecule_api.version }}, expected {{ piu_tracker_defaults.piu_tracker_version }}"
             success_msg: "The application reports {{ piu_tracker_molecule_api.version }}"
 
+        # The headline stats cover the newest version played, Phoenix: the
+        # Prime 2 play of a third song is counted under its own version only.
         - name: Assert every score entry was loaded
           ansible.builtin.assert:
             that:
               - piu_tracker_molecule_api.player == piu_tracker_player_name
-              - piu_tracker_molecule_api.stats.plays == piu_tracker_scores | length
+              - piu_tracker_molecule_api.stats.version == 'phoenix'
+              - piu_tracker_molecule_api.stats.plays == piu_tracker_molecule_phoenix_scores | length
               - piu_tracker_molecule_api.stats.songs == 2
+              - piu_tracker_molecule_api.stats.charts == 3
               - piu_tracker_molecule_api.stats.highest_single == 15
               # D13 is a stage break, so no double has been cleared.
               - piu_tracker_molecule_api.stats.highest_double == 0
               # The D13 stage break and the S15 fail with no score.
               - piu_tracker_molecule_api.stats.fails == 2
-            fail_msg: "The application loaded {{ piu_tracker_molecule_api.stats }} for player {{ piu_tracker_molecule_api.player }}"
-            success_msg: "The application loaded all {{ piu_tracker_scores | length }} plays"
+              - piu_tracker_molecule_api.versions | map(attribute='version') | list == ['phoenix', 'prime2']
+              - piu_tracker_molecule_api.versions | map(attribute='plays') | sum == piu_tracker_scores | length
+            fail_msg: "The application loaded {{ piu_tracker_molecule_api.stats }} and {{ piu_tracker_molecule_api.versions }} for player {{ piu_tracker_molecule_api.player }}"
+            success_msg: "The application loaded all {{ piu_tracker_scores | length }} plays, {{ piu_tracker_molecule_phoenix_scores | length }} of them from Phoenix"
+
+        - name: Assert the Prime 2 play was loaded under its version, as its result screen showed it
+          vars:
+            piu_tracker_molecule_s7: "{{ piu_tracker_molecule_le_grand_bleu.charts[0] }}"
+          ansible.builtin.assert:
+            that:
+              - piu_tracker_molecule_api.versions[1].plays == 1
+              - piu_tracker_molecule_le_grand_bleu.charts | length == 1
+              - piu_tracker_molecule_s7.chart == 'S7'
+              - piu_tracker_molecule_s7.version == 'prime2'
+              - "piu_tracker_molecule_s7.lineage == [{'version': 'prime2', 'chart': 'S7'}]"
+              - piu_tracker_molecule_s7.cleared
+              - piu_tracker_molecule_s7.best.score == 1038500
+              - piu_tracker_molecule_s7.best.grade == 'S'
+              - piu_tracker_molecule_s7.best.version == 'prime2'
+              - piu_tracker_molecule_s7.history[0].version == 'prime2'
+              - piu_tracker_molecule_s7.history[0].date == '2025-09-09T18:15'
+              - piu_tracker_molecule_s7.history[0].pb
+            fail_msg: "Unexpected Le Grand Bleu: {{ piu_tracker_molecule_le_grand_bleu }}"
+            success_msg: "The Prime 2 play is loaded under prime2, with its score over 1,000,000 and its grade as logged"
 
         # The unquoted dates and the quoted, zero-padded score only come out
         # right if they survived Ansible's YAML parsing and the JSON rendering.

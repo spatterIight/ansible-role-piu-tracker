@@ -73,6 +73,20 @@ piu_tracker_scores:
 
 Such an entry may only have `song`, `chart`, `date`, `kcal` and `note`. It shows as a failed attempt, and never counts as a clear or a personal best.
 
+Plays are from Pump It Up Phoenix unless they say otherwise. A play from Prime 2 or XX names its version with `version` (`prime2` or `xx`; `phoenix` is the default):
+
+```yaml
+piu_tracker_scores:
+  - song: Le Grand Bleu
+    chart: S7
+    version: prime2
+    date: 2025-09-09
+    score: 1038500             # required for Prime 2 and XX; can be over 1,000,000
+    grade: S                   # optional, shown as logged; there are no plates
+```
+
+Scores and grades are kept as each version's result screen showed them, and a chart of one version is a different chart from the same level of another. The front page's headline stats cover the newest version you have played. To follow a chart into a newer version, possibly at another level, link the two in the song's details (see below). See the project's [README](https://github.com/spatterIight/pump-it-up-tracker#game-versions) for what each version checks and how personal bests carry across a link.
+
 >[!IMPORTANT]
 > Write numbers without the leading zeros the cabinet shows: YAML reads `031` as the octal number 25. When `judgments` and `max_combo` are both given, the score is checked against them, which catches such mistakes.
 
@@ -103,7 +117,12 @@ piu_tracker_songs:
     bpm: 160
   Big Daddy:
     image: https://www.piugame.com/data/song_img/<id>.png
+  Katkoi:
+    lineages:
+      - {prime2: S7, phoenix: S7}
 ```
+
+`lineages` links a song's charts that are the same step chart in different game versions, possibly at different levels: each maps a version to the chart as that version labels it. The song page then shows them as one chart. See the project's [README](https://github.com/spatterIight/pump-it-up-tracker#chart-continuity) for the details.
 
 ### Configure jacket art (optional)
 

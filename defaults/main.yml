@@ -19,7 +19,7 @@ piu_tracker_config_path: "{{ piu_tracker_base_path }}/config"
 piu_tracker_data_path: "{{ piu_tracker_base_path }}/data"
 
 # renovate: datasource=docker depName=ghcr.io/spatteriight/pump-it-up-tracker versioning=semver
-piu_tracker_version: 1.1.1
+piu_tracker_version: 1.2.0
 
 piu_tracker_uid: ""
 piu_tracker_gid: ""
@@ -224,7 +224,17 @@ piu_tracker_player_name: ""
 #
 # Optional keys: `score`, `grade`, `plate` (PG, UG, EG, SG, MG, TG, FG, RG or the
 # full name), `broken` (a stage break), `judgments` (all five of perfect, great,
-# good, bad, miss), `max_combo`, `kcal` and `note`.
+# good, bad, miss), `max_combo`, `kcal`, `note` and `version`.
+#
+# `version` is the game version the play is from: `phoenix` (the default),
+# `prime2` or `xx`. Scores and grades are kept as that version's result screen
+# showed them, and personal bests are only compared within a version (or
+# versions that score the same way). A Prime 2 or XX play needs a `score`,
+# which can be over 1,000,000 and is taken as logged (it only has to be a
+# multiple of 100). It cannot have a `plate`, and its `grade` is optional and
+# not checked.
+# To follow a chart from one version into another, see `lineages` in
+# `piu_tracker_songs`.
 #
 # A failed play whose result screen shows "-" instead of a score is logged with
 # `broken: true` and no score. It may only have `song`, `chart`, `date`, `kcal`
@@ -245,11 +255,19 @@ piu_tracker_player_name: ""
 #     max_combo: 294
 #     kcal: 31.137
 #   - {song: DUEL, chart: S13, date: 2026-09-08, broken: true}
+#   - {song: Le Grand Bleu, chart: S7, version: prime2, date: 2025-09-09, score: 1038500, grade: S}
 piu_tracker_scores: []
 
 # Optional details about songs, keyed by title (matched case-insensitively).
 #
 # `image` is either an image URL, or the name of a file in `piu_tracker_custom_art_path`.
+#
+# `lineages` links the song's charts that are the same step chart in different
+# game versions, maybe at different levels. Each is a mapping from version to
+# the chart as that version labels it, such as `{prime2: S7, phoenix: S8}`. Each
+# chart must have plays, and can be in one lineage only. The song page then
+# shows the lineage as one chart, and personal bests carry across it between
+# versions that score plays the same way.
 #
 # Example:
 # piu_tracker_songs:
@@ -258,6 +276,9 @@ piu_tracker_scores: []
 #     bpm: 160
 #   Big Daddy:
 #     image: https://www.piugame.com/data/song_img/<id>.png
+#   Katkoi:
+#     lineages:
+#       - {prime2: S7, phoenix: S7}
 piu_tracker_songs: {}
 
 # Everything the application reads, rendered into `tracker.json`.
