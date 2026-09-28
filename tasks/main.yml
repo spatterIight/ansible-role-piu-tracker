@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2023 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2025, 2026 Suguru Hirahara
+# SPDX-FileCopyrightText: 2025, 2026 spatterlight
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+- name: Perform pump-it-up-tracker installation tasks
+  when: piu_tracker_enabled | bool
+  tags:
+    - setup-all
+    - setup-piu-tracker
+    - install-all
+    - install-piu-tracker
+  block:
+    - name: Validate pump-it-up-tracker configuration
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/validate_config.yml"
+    - name: Install pump-it-up-tracker
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/install.yml"
+
+- name: Perform pump-it-up-tracker uninstallation tasks
+  when: not piu_tracker_enabled | bool
+  tags:
+    - setup-all
+    - setup-piu-tracker
+  block:
+    - name: Uninstall pump-it-up-tracker
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/uninstall.yml"

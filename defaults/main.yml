@@ -1,0 +1,331 @@
+# SPDX-FileCopyrightText: 2023 Niels Bouma
+# SPDX-FileCopyrightText: 2023, 2024 Nikita Chernyi
+# SPDX-FileCopyrightText: 2023-2025 MASH project contributors
+# SPDX-FileCopyrightText: 2023-2025 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2024 Sergio Durigan Junior
+# SPDX-FileCopyrightText: 2025, 2026 Suguru Hirahara
+# SPDX-FileCopyrightText: 2025, 2026 spatterlight
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+# Project source code URL: https://github.com/spatterIight/pump-it-up-tracker
+
+piu_tracker_enabled: true
+
+piu_tracker_identifier: piu-tracker
+piu_tracker_base_path: "/{{ piu_tracker_identifier }}"
+piu_tracker_config_path: "{{ piu_tracker_base_path }}/config"
+piu_tracker_data_path: "{{ piu_tracker_base_path }}/data"
+
+# renovate: datasource=docker depName=ghcr.io/spatteriight/pump-it-up-tracker versioning=semver
+piu_tracker_version: 0.1.0
+
+piu_tracker_uid: ""
+piu_tracker_gid: ""
+
+# The hostname at which the tracker is served.
+piu_tracker_hostname: ""
+
+# The path at which the tracker is served.
+# This value must either be `/` or not end with a slash (e.g. `/piu`).
+# The application serves itself under this prefix, so it is not stripped by the reverse-proxy.
+piu_tracker_path_prefix: /
+
+piu_tracker_container_image: "{{ piu_tracker_container_image_registry_prefix }}spatteriight/pump-it-up-tracker:{{ piu_tracker_container_image_tag }}"
+piu_tracker_container_image_tag: "{{ piu_tracker_version }}"
+piu_tracker_container_image_registry_prefix: "{{ piu_tracker_container_image_registry_prefix_upstream }}"
+piu_tracker_container_image_registry_prefix_upstream: "{{ piu_tracker_container_image_registry_prefix_upstream_default }}"
+piu_tracker_container_image_registry_prefix_upstream_default: ghcr.io/
+
+# The base container network. It will be auto-created by this role if it doesn't exist already.
+piu_tracker_container_network: "{{ piu_tracker_identifier }}"
+
+# Control if the container network is deleted on uninstalling.
+piu_tracker_container_network_deletion_enabled: true
+
+# Specify how the container publishes its HTTP port (as defined by `piu_tracker_container_http_port`).
+#
+# Takes an "<ip>:<port>" or "<port>" value (e.g. "127.0.0.1:8080"), or empty string to not expose.
+piu_tracker_container_http_bind_port: ""
+
+# The port number in the container
+piu_tracker_container_http_port: 8080
+
+# A list of additional container networks that the container would be connected to.
+# The role does not create these networks, so make sure they already exist.
+# Use this to expose this container to another reverse proxy, which runs in a different container network.
+piu_tracker_container_additional_networks: "{{ (piu_tracker_container_additional_networks_default + piu_tracker_container_additional_networks_auto + piu_tracker_container_additional_networks_custom) | unique }}"
+piu_tracker_container_additional_networks_default: []
+piu_tracker_container_additional_networks_auto: []
+piu_tracker_container_additional_networks_custom: []
+
+# A list of additional "volumes" to mount in the container.
+# This list gets populated dynamically at runtime. You can provide a different default value,
+# if you wish to mount your own files into the container.
+# Contains definition objects like this: `{"type": "bind", "src": "/outside", "dst": "/inside", "options": "readonly"}.
+# See the `--mount` documentation for the `docker run` command.
+piu_tracker_container_additional_volumes: "{{ piu_tracker_container_additional_volumes_auto + piu_tracker_container_additional_volumes_custom }}"
+piu_tracker_container_additional_volumes_auto: []
+piu_tracker_container_additional_volumes_custom: []
+
+# piu_tracker_container_labels_traefik_enabled controls whether labels to assist a Traefik reverse-proxy will be attached to the container.
+# See `../templates/labels.j2` for details.
+#
+# To inject your own other container labels, see `piu_tracker_container_labels_additional_labels_custom`.
+piu_tracker_container_labels_traefik_enabled: true
+piu_tracker_container_labels_traefik_docker_network: "{{ piu_tracker_container_network }}"
+piu_tracker_container_labels_traefik_hostname: "{{ piu_tracker_hostname }}"
+# The path prefix must either be `/` or not end with a slash (e.g. `/piu`).
+piu_tracker_container_labels_traefik_path_prefix: "{{ piu_tracker_path_prefix }}"
+piu_tracker_container_labels_traefik_rule: "Host(`{{ piu_tracker_container_labels_traefik_hostname }}`){% if piu_tracker_container_labels_traefik_path_prefix != '/' %} && PathPrefix(`{{ piu_tracker_container_labels_traefik_path_prefix }}`){% endif %}"
+piu_tracker_container_labels_traefik_priority: 0
+piu_tracker_container_labels_traefik_entrypoints: web-secure
+piu_tracker_container_labels_traefik_tls: "{{ piu_tracker_container_labels_traefik_entrypoints != 'web' }}"
+piu_tracker_container_labels_traefik_tls_certResolver: default  # noqa var-naming
+
+# Controls which additional headers to attach to all HTTP requests.
+# To add your own custom request headers, use `piu_tracker_container_labels_traefik_additional_request_headers_custom`
+piu_tracker_container_labels_traefik_additional_request_headers: "{{ piu_tracker_container_labels_traefik_additional_request_headers_auto | combine(piu_tracker_container_labels_traefik_additional_request_headers_custom) }}"
+piu_tracker_container_labels_traefik_additional_request_headers_auto: {}
+piu_tracker_container_labels_traefik_additional_request_headers_custom: {}
+
+# Controls which additional headers to attach to all HTTP responses.
+# To add your own custom response headers, use `piu_tracker_container_labels_traefik_additional_response_headers_custom`
+piu_tracker_container_labels_traefik_additional_response_headers: "{{ piu_tracker_container_labels_traefik_additional_response_headers_auto | combine(piu_tracker_container_labels_traefik_additional_response_headers_custom) }}"
+piu_tracker_container_labels_traefik_additional_response_headers_auto: |
+  {{
+    {}
+    | combine ({'X-XSS-Protection': piu_tracker_http_header_xss_protection} if piu_tracker_http_header_xss_protection else {})
+    | combine ({'X-Content-Type-Options': piu_tracker_http_header_content_type_options} if piu_tracker_http_header_content_type_options else {})
+    | combine ({'Permissions-Policy': piu_tracker_http_header_permissions_policy} if piu_tracker_http_header_permissions_policy else {})
+    | combine ({'Strict-Transport-Security': piu_tracker_http_header_strict_transport_security} if piu_tracker_http_header_strict_transport_security and piu_tracker_container_labels_traefik_tls else {})
+  }}
+piu_tracker_container_labels_traefik_additional_response_headers_custom: {}
+
+# Additional Traefik middlewares to apply to the tracker's router, by name.
+# Use this to put authentication in front of the tracker, which has none of its own.
+#
+# Example (with the middleware itself defined through `piu_tracker_container_labels_additional_labels_custom`):
+# piu_tracker_container_labels_additional_labels_custom:
+#   - "traefik.http.middlewares.piu-tracker-auth.basicauth.users=USER:HASH"
+# piu_tracker_container_labels_traefik_additional_middlewares_custom:
+#   - piu-tracker-auth
+piu_tracker_container_labels_traefik_additional_middlewares_custom: []
+
+# piu_tracker_container_labels_additional_labels contains a multiline string with additional labels to add to the container label file.
+# See `../templates/labels.j2` for details.
+# To add your own custom labels, use `piu_tracker_container_labels_additional_labels_custom`
+#
+# Example:
+# piu_tracker_container_labels_additional_labels_custom:
+#   - my.label=1
+#   - another.label="here"
+piu_tracker_container_labels_additional_labels: "{{ piu_tracker_container_labels_additional_labels_auto + piu_tracker_container_labels_additional_labels_custom }}"
+piu_tracker_container_labels_additional_labels_auto: []
+piu_tracker_container_labels_additional_labels_custom: []
+
+# A list of extra arguments to pass to the container (`docker create` command)
+piu_tracker_container_extra_arguments: "{{ piu_tracker_container_extra_arguments_auto + piu_tracker_container_extra_arguments_custom }}"
+piu_tracker_container_extra_arguments_auto: []
+piu_tracker_container_extra_arguments_custom: []
+
+# Specifies the value of the `X-XSS-Protection` header
+# Stops pages from loading when they detect reflected cross-site scripting (XSS) attacks.
+#
+# Learn more about it is here:
+# - https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-XSS-Protection
+# - https://portswigger.net/web-security/cross-site-scripting/reflected
+piu_tracker_http_header_xss_protection: "1; mode=block"
+
+# Specifies the value of the `X-Content-Type-Options` header.
+# See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options
+piu_tracker_http_header_content_type_options: nosniff
+
+# Specifies the value of the `Permissions-Policy` header.
+# See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Permissions-Policy
+piu_tracker_http_header_permissions_policy: "{{ 'interest-cohort=()' if piu_tracker_floc_optout_enabled else '' }}"
+
+# Specifies the value of the `Strict-Transport-Security` header.
+# See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security
+piu_tracker_http_header_strict_transport_security: "max-age=31536000; includeSubDomains{{ '; preload' if piu_tracker_hsts_preload_enabled else '' }}"
+
+# Controls whether to send a "Permissions-Policy interest-cohort=();" header along with all responses
+#
+# Learn more about what it is here:
+# - https://www.eff.org/deeplinks/2021/03/googles-floc-terrible-idea
+# - https://paramdeo.com/blog/opting-your-website-out-of-googles-floc-network
+# - https://amifloced.org/
+#
+# See: `piu_tracker_http_header_permissions_policy`
+piu_tracker_floc_optout_enabled: true
+
+# Controls if HSTS preloading is enabled
+#
+# See: `piu_tracker_http_header_strict_transport_security`
+piu_tracker_hsts_preload_enabled: false
+
+# List of systemd services that the tracker's systemd service depends on
+piu_tracker_systemd_required_services_list: "{{ (piu_tracker_systemd_required_services_list_default + piu_tracker_systemd_required_services_list_auto + piu_tracker_systemd_required_services_list_custom) | unique }}"
+piu_tracker_systemd_required_services_list_default: "{{ [devture_systemd_docker_base_docker_service_name] if devture_systemd_docker_base_docker_service_name else [] }}"
+piu_tracker_systemd_required_services_list_auto: []
+piu_tracker_systemd_required_services_list_custom: []
+
+# List of systemd services that the tracker's systemd service wants
+piu_tracker_systemd_wanted_services_list: "{{ (piu_tracker_systemd_wanted_services_list_default + piu_tracker_systemd_wanted_services_list_auto + piu_tracker_systemd_wanted_services_list_custom) | unique }}"
+piu_tracker_systemd_wanted_services_list_default: []
+piu_tracker_systemd_wanted_services_list_auto: []
+piu_tracker_systemd_wanted_services_list_custom: []
+
+# Controls how long to wait for the container to stop gracefully before killing it.
+piu_tracker_container_stop_grace_time_seconds: "{{ devture_systemd_docker_base_container_stop_grace_time_seconds }}"
+
+# Controls how long the pre-start cleanup should wait for stale container-name release
+# before failing startup explicitly.
+piu_tracker_container_cleanup_timeout_seconds: "{{ devture_systemd_docker_base_container_cleanup_timeout_seconds }}"
+
+# Controls the delay between pre-start cleanup retries.
+piu_tracker_container_cleanup_retry_delay_seconds: "{{ devture_systemd_docker_base_container_cleanup_retry_delay_seconds }}"
+
+# Shell command used in the systemd pre-start phase to deterministically remove a stale
+# container and wait until Docker releases its name.
+piu_tracker_container_cleanup_command: |
+  i=0;
+  while [ "$i" -lt {{ piu_tracker_container_cleanup_timeout_seconds }} ]; do
+  {{ devture_systemd_docker_base_host_command_docker }} stop -t {{ piu_tracker_container_stop_grace_time_seconds }} {{ piu_tracker_identifier }} >/dev/null 2>&1 || true;
+  {{ devture_systemd_docker_base_host_command_docker }} rm -f {{ piu_tracker_identifier }} >/dev/null 2>&1 || true;
+  if {{ devture_systemd_docker_base_host_command_docker }} container inspect {{ piu_tracker_identifier }} >/dev/null 2>&1; then
+  i=$((i + 1));
+  sleep {{ piu_tracker_container_cleanup_retry_delay_seconds }};
+  continue;
+  fi;
+  if {{ devture_systemd_docker_base_host_command_docker }} info >/dev/null 2>&1; then
+  exit 0;
+  fi;
+  echo "Failed to query Docker daemon while cleaning up {{ piu_tracker_identifier }}" >&2;
+  exit 1;
+  done;
+  echo "Failed to remove stale container {{ piu_tracker_identifier }} after {{ piu_tracker_container_cleanup_timeout_seconds }} attempts" >&2;
+  exit 1
+
+########################################################################
+#                                                                      #
+# Score data                                                           #
+#                                                                      #
+########################################################################
+
+# The player name shown in the header. Leave empty to show none.
+piu_tracker_player_name: ""
+
+# The score log: one entry per result screen.
+#
+# Required keys: `song`, `chart` (S11, D21, SP12, DP20, CoOp2) and `date`
+# (YYYY-MM-DD, optionally with a time: "2026-09-28 18:45"), plus either `score`
+# or both `judgments` and `max_combo` to work the score out from.
+#
+# Optional keys: `score`, `grade`, `plate` (PG, UG, EG, SG, MG, TG, FG, RG or the
+# full name), `broken` (a stage break), `judgments` (all five of perfect, great,
+# good, bad, miss), `max_combo`, `kcal` and `note`.
+#
+# Write numbers without the leading zeros the cabinet shows: YAML reads `031` as
+# the octal number 25. When `judgments` and `max_combo` are both given, the score
+# is checked against them, which catches such mistakes.
+#
+# Example:
+# piu_tracker_scores:
+#   - song: Big Daddy
+#     chart: S11
+#     date: 2026-09-28
+#     score: 938204
+#     plate: TG
+#     judgments: {perfect: 506, great: 31, good: 11, bad: 7, miss: 6}
+#     max_combo: 294
+#     kcal: 31.137
+piu_tracker_scores: []
+
+# Optional details about songs, keyed by title (matched case-insensitively).
+#
+# `image` is either an image URL, or the name of a file in `piu_tracker_custom_art_path`.
+#
+# Example:
+# piu_tracker_songs:
+#   Conflict:
+#     artist: Siromaru + Cranky
+#     bpm: 160
+#   Big Daddy:
+#     image: https://www.piugame.com/data/song_img/<id>.png
+piu_tracker_songs: {}
+
+# Everything the application reads, rendered into `tracker.json`.
+# You most likely don't need to touch this. Instead, see `piu_tracker_scores` and `piu_tracker_songs`.
+piu_tracker_data:
+  schema_version: 1
+  player:
+    name: "{{ piu_tracker_player_name }}"
+  songs: "{{ piu_tracker_songs }}"
+  scores: "{{ piu_tracker_scores }}"
+
+# Controls whether `tracker.json` is checked with the application's own `validate`
+# command before it replaces the live file. A file with a mistake in it then fails
+# the playbook run instead of stopping the service from starting.
+piu_tracker_data_validation_enabled: true
+
+# The command that validates a candidate data file (`%s` is its path).
+# It runs as root inside a throwaway container without network access or
+# capabilities, because the candidate file is only readable by root.
+piu_tracker_data_validation_command: >-
+  {{ devture_systemd_docker_base_host_command_docker }} run --rm
+  --network=none
+  --cap-drop=ALL
+  --read-only
+  --user=0:0
+  --mount type=bind,src=%s,dst=/tmp/tracker.json,readonly
+  {{ piu_tracker_container_image }}
+  validate /tmp/tracker.json
+
+########################################################################
+#                                                                      #
+# Jacket art                                                           #
+#                                                                      #
+########################################################################
+
+# Controls whether jacket art is downloaded from the internet.
+# When disabled, only images in `piu_tracker_custom_art_path` are used and
+# every other song shows a generated placeholder.
+piu_tracker_art_fetch_enabled: true
+
+# The online sources to look for jacket art in, in order.
+# Supported values: `piuscores` (https://piuscores.arroweclip.se) and `fandom` (https://pumpitup.fandom.com)
+piu_tracker_art_sources:
+  - piuscores
+  - fandom
+
+# A directory on the host with your own jacket images, mounted read-only into the container.
+# Name files after the song (`big-daddy.png`), or refer to them with a song's `image`.
+# Leave empty to not mount anything.
+piu_tracker_custom_art_path: ""
+
+# The time zone used for "today" and "yesterday" (e.g. `Europe/London`). Empty means UTC.
+piu_tracker_timezone: ""
+
+# Controls the `PIU_TRACKER_LOG_LEVEL` environment variable: debug, info, warn or error
+piu_tracker_log_level: info
+
+# piu_tracker_environment_variables_additional_variables contains a multiline string with additional environment variables to pass to the container.
+#
+# Example:
+# piu_tracker_environment_variables_additional_variables: |
+#   VAR=1
+#   ANOTHER=value
+piu_tracker_environment_variables_additional_variables: ""
+
+# piu_tracker_restart_necessary controls whether the tracker's systemd
+# service will be restarted (when true) or merely started (when false) by the
+# systemd service manager role (when conditional restart is enabled).
+#
+# This value is automatically computed during installation based on whether
+# the data file, any other configuration files, the systemd service file, or
+# the container image changed.
+# The default of `false` means "no restart needed" — appropriate when the role's
+# installation tasks haven't run (e.g., due to --tags skipping them).
+piu_tracker_restart_necessary: false

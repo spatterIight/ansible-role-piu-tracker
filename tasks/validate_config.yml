@@ -1,0 +1,80 @@
+# SPDX-FileCopyrightText: 2023 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2025, 2026 spatterlight
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+- name: Fail if required pump-it-up-tracker settings not defined
+  ansible.builtin.fail:
+    msg: >-
+      You need to define a required configuration setting (`{{ item }}`).
+  when: "lookup('vars', item, default='') | string | length == 0"
+  with_items:
+    - piu_tracker_uid
+    - piu_tracker_gid
+
+- name: Fail if pump-it-up-tracker score data has the wrong shape
+  ansible.builtin.fail:
+    msg: >-
+      `piu_tracker_scores` must be a list (of result screens) and `piu_tracker_songs` a mapping (keyed by song title).
+      See defaults/main.yml for examples.
+  when: >-
+    piu_tracker_scores is string or piu_tracker_scores is mapping or piu_tracker_scores is not iterable
+    or piu_tracker_songs is not mapping
+
+# Only the basics are checked here, so that a badly broken entry is reported
+# before anything is installed. Everything else (chart notation, dates, whether
+# the score matches the judgments, ...) is checked by the application's own
+# `validate` command when the data file is installed.
+- name: Fail if pump-it-up-tracker score entries lack a song, chart or date
+  ansible.builtin.fail:
+    msg: >-
+      Every entry in `piu_tracker_scores` must be a mapping with at least `song`, `chart` and `date`.
+      {{ piu_tracker_scores_incomplete | length }} entry(ies) are not, the first being: {{ piu_tracker_scores_incomplete | first }}
+  vars:
+    piu_tracker_scores_incomplete: >-
+      {{
+        (piu_tracker_scores | reject('mapping') | list)
+        + (piu_tracker_scores | select('mapping') | rejectattr('song', 'defined') | list)
+        + (piu_tracker_scores | select('mapping') | rejectattr('chart', 'defined') | list)
+        + (piu_tracker_scores | select('mapping') | rejectattr('date', 'defined') | list)
+      }}
+  when: piu_tracker_scores_incomplete | length > 0
+
+- name: Fail if pump-it-up-tracker art sources are not supported
+  ansible.builtin.fail:
+    msg: >-
+      `piu_tracker_art_sources` contains unsupported values ({{ piu_tracker_art_sources | difference(['piuscores', 'fandom']) | join(', ') }}).
+      Supported values are `piuscores` and `fandom`.
+  when: piu_tracker_art_sources | difference(['piuscores', 'fandom']) | length > 0
+
+- name: Fail if pump-it-up-tracker log level is not supported
+  ansible.builtin.fail:
+    msg: >-
+      `piu_tracker_log_level` must be one of debug, info, warn or error (got `{{ piu_tracker_log_level }}`).
+  when: piu_tracker_log_level | lower not in ['debug', 'info', 'warn', 'error']
+
+# We ensure it doesn't end with a slash, because we handle both (slash and no-slash).
+- name: Fail if piu_tracker_path_prefix ends with a slash
+  ansible.builtin.fail:
+    msg: >-
+      piu_tracker_path_prefix (`{{ piu_tracker_path_prefix }}`) must either be `/` or not end with a slash (e.g. `/piu`).
+  when: "piu_tracker_path_prefix != '/' and piu_tracker_path_prefix[-1] == '/'"
+
+- name: Validate pump-it-up-tracker Traefik configuration
+  when: piu_tracker_container_labels_traefik_enabled | bool
+  block:
+    - name: Fail if Traefik settings required for pump-it-up-tracker are not defined
+      ansible.builtin.fail:
+        msg: >-
+          You need to define a required configuration setting (`{{ item }}`).
+      when: "lookup('vars', item, default='') | string | length == 0"
+      with_items:
+        - piu_tracker_container_labels_traefik_hostname
+        - piu_tracker_container_labels_traefik_path_prefix
+
+    - name: Fail if piu_tracker_container_labels_traefik_path_prefix ends with a slash
+      ansible.builtin.fail:
+        msg: >-
+          piu_tracker_container_labels_traefik_path_prefix (`{{ piu_tracker_container_labels_traefik_path_prefix }}`) must either be `/` or not end with a slash (e.g. `/piu`).
+      when: "piu_tracker_container_labels_traefik_path_prefix != '/' and piu_tracker_container_labels_traefik_path_prefix[-1] == '/'"

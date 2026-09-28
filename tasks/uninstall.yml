@@ -1,0 +1,88 @@
+# SPDX-FileCopyrightText: 2023 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2025, 2026 Suguru Hirahara
+# SPDX-FileCopyrightText: 2025, 2026 spatterlight
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+- name: Check existence of pump-it-up-tracker systemd service
+  ansible.builtin.stat:
+    path: "{{ devture_systemd_docker_base_systemd_path }}/{{ piu_tracker_identifier }}.service"
+  register: piu_tracker_service_stat
+
+- name: Uninstall pump-it-up-tracker systemd services and files
+  when: piu_tracker_service_stat.stat.exists | bool
+  block:
+    - name: Ensure pump-it-up-tracker systemd service is stopped
+      ansible.builtin.service:
+        name: "{{ piu_tracker_identifier }}"
+        state: stopped
+        enabled: false
+        daemon_reload: true
+
+    - name: Ensure pump-it-up-tracker systemd service does not exist
+      ansible.builtin.file:
+        path: "{{ devture_systemd_docker_base_systemd_path }}/{{ piu_tracker_identifier }}.service"
+        state: absent
+
+    # The data file is generated from Ansible variables, so it is not data
+    # worth keeping around.
+    - name: Ensure pump-it-up-tracker support files do not exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - "{{ piu_tracker_base_path }}/env"
+        - "{{ piu_tracker_base_path }}/labels"
+        - "{{ piu_tracker_config_path }}"
+
+    - name: Ensure pump-it-up-tracker local data path does not exist if empty
+      ansible.builtin.command:
+        cmd: "rmdir {{ piu_tracker_data_path }}"
+      register: piu_tracker_data_path_deletion_result
+      changed_when: piu_tracker_data_path_deletion_result.rc == 0
+      failed_when: false
+
+    - name: Ensure pump-it-up-tracker base path does not exist if empty
+      ansible.builtin.command:
+        cmd: "rmdir {{ piu_tracker_base_path }}"
+      register: piu_tracker_base_path_deletion_result
+      changed_when: piu_tracker_base_path_deletion_result.rc == 0
+      failed_when: false
+
+    - name: Ensure pump-it-up-tracker container network does not exist
+      when: piu_tracker_container_network_deletion_enabled
+      block:
+        - name: Ensure pump-it-up-tracker container network does not exist via community.docker.docker_network
+          when: devture_systemd_docker_base_container_network_creation_method == 'ansible-module'
+          community.docker.docker_network:
+            name: "{{ piu_tracker_container_network }}"
+            state: absent
+          register: piu_tracker_network_deletion_result
+
+        - name: Ensure pump-it-up-tracker container network does not exist via ansible.builtin.command
+          when: devture_systemd_docker_base_container_network_creation_method == 'command'
+          ansible.builtin.command:
+            cmd: >-
+              {{ devture_systemd_docker_base_host_command_docker }} network rm
+              {{ piu_tracker_container_network }}
+          register: piu_tracker_network_deletion_result
+          changed_when: piu_tracker_container_network in piu_tracker_network_deletion_result.stdout
+
+- name: Check existence of pump-it-up-tracker local data path
+  ansible.builtin.stat:
+    path: "{{ piu_tracker_data_path }}"
+  register: piu_tracker_data_path_stat
+
+# We just want to notify the user. Deleting data is too destructive.
+- name: Inject the message about the remaining pump-it-up-tracker local data path
+  when: piu_tracker_data_path_stat.stat.exists | bool
+  ansible.builtin.set_fact:
+    devture_playbook_runtime_messages_list: |
+      {{
+        devture_playbook_runtime_messages_list | default([])
+        +
+        [
+          "Note: As the local pump-it-up-tracker instance has been removed, some old data (the jacket art cache) remains in `" + piu_tracker_data_path + "`. Feel free to delete it."
+        ]
+      }}

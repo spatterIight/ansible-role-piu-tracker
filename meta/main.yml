@@ -1,0 +1,22 @@
+---
+galaxy_info:
+  author: spatterlight
+  company: spatterlight
+  role_name: piu_tracker
+  namespace: spatterlight
+  description: An Ansible role for installing pump-it-up-tracker, a read-only web app for personal Pump It Up score tracking
+  platforms:
+    - name: Debian
+      versions:
+        - all
+    - name: Ubuntu
+      versions:
+        - all
+    - name: ArchLinux
+      versions:
+        - all
+    - name: EL
+      versions:
+        - "7"
+  license: AGPL-3.0-or-later
+  min_ansible_version: "2.19"

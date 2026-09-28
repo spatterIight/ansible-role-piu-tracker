@@ -1,0 +1,66 @@
+{#
+SPDX-FileCopyrightText: 2023, 2025 Slavi Pantaleev
+SPDX-FileCopyrightText: 2024 Nikita Chernyi
+SPDX-FileCopyrightText: 2025, 2026 Suguru Hirahara
+SPDX-FileCopyrightText: 2025, 2026 spatterlight
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+#}
+
+[Unit]
+Description=pump-it-up-tracker ({{ piu_tracker_identifier }})
+{% for service in piu_tracker_systemd_required_services_list %}
+Requires={{ service }}
+After={{ service }}
+{% endfor %}
+{% for service in piu_tracker_systemd_wanted_services_list %}
+Wants={{ service }}
+{% endfor %}
+
+[Service]
+Type=simple
+Environment="HOME={{ devture_systemd_docker_base_systemd_unit_home_path }}"
+ExecStartPre={{ devture_systemd_docker_base_host_command_sh }} -c '{{ piu_tracker_container_cleanup_command | trim | replace("\n", " ") }}'
+
+ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} create \
+      --rm \
+      --name={{ piu_tracker_identifier }} \
+      --log-driver=none \
+      --user={{ piu_tracker_uid }}:{{ piu_tracker_gid }} \
+      --cap-drop=ALL \
+      --read-only \
+      --tmpfs=/tmp:rw,noexec,nosuid \
+      --network={{ piu_tracker_container_network }} \
+      {% if piu_tracker_container_http_bind_port %}
+      -p {{ piu_tracker_container_http_bind_port }}:{{ piu_tracker_container_http_port }} \
+      {% endif %}
+      --env-file={{ piu_tracker_base_path }}/env \
+      --label-file={{ piu_tracker_base_path }}/labels \
+      --mount type=bind,src={{ piu_tracker_config_path }},dst=/config,readonly \
+      --mount type=bind,src={{ piu_tracker_data_path }},dst=/data \
+      {% if piu_tracker_custom_art_path %}
+      --mount type=bind,src={{ piu_tracker_custom_art_path }},dst=/art,readonly \
+      {% endif %}
+      {% for volume in piu_tracker_container_additional_volumes %}
+      --mount type={{ volume.type | default('bind' if '/' in volume.src else 'volume') }},src={{ volume.src }},dst={{ volume.dst }}{{ (',' + volume.options) if volume.options | default('') else '' }} \
+      {% endfor %}
+      {% for arg in piu_tracker_container_extra_arguments %}
+      {{ arg }} \
+      {% endfor %}
+      {{ piu_tracker_container_image }}
+
+{% for network in piu_tracker_container_additional_networks %}
+ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} network connect {{ network }} {{ piu_tracker_identifier }}
+{% endfor %}
+
+ExecStart={{ devture_systemd_docker_base_host_command_docker }} start --attach {{ piu_tracker_identifier }}
+
+ExecStop=-{{ devture_systemd_docker_base_host_command_sh }} -c '{{ devture_systemd_docker_base_host_command_docker }} stop -t {{ piu_tracker_container_stop_grace_time_seconds }} {{ piu_tracker_identifier }} 2>/dev/null || true'
+ExecStop=-{{ devture_systemd_docker_base_host_command_sh }} -c '{{ devture_systemd_docker_base_host_command_docker }} rm {{ piu_tracker_identifier }} 2>/dev/null || true'
+
+Restart=always
+RestartSec=30
+SyslogIdentifier={{ piu_tracker_identifier }}
+
+[Install]
+WantedBy=multi-user.target

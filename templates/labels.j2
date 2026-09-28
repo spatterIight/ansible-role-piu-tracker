@@ -1,0 +1,58 @@
+{#
+SPDX-FileCopyrightText: 2023 Julian-Samuel Gebühr
+SPDX-FileCopyrightText: 2023 Slavi Pantaleev
+SPDX-FileCopyrightText: 2025, 2026 spatterlight
+SPDX-FileCopyrightText: 2026 Suguru Hirahara
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+#}
+
+{% if piu_tracker_container_labels_traefik_enabled %}
+traefik.enable=true
+
+{% if piu_tracker_container_labels_traefik_docker_network %}
+traefik.docker.network={{ piu_tracker_container_labels_traefik_docker_network }}
+{% endif %}
+
+{#
+The application serves itself under `piu_tracker_path_prefix` (and redirects
+the slashless form to it), so, unlike most services, the prefix is not stripped here.
+#}
+{% set middlewares = [] %}
+
+{% if piu_tracker_container_labels_traefik_additional_request_headers.keys() | length > 0 %}
+{% for name, value in piu_tracker_container_labels_traefik_additional_request_headers.items() %}
+traefik.http.middlewares.{{ piu_tracker_identifier }}-add-request-headers.headers.customrequestheaders.{{ name }}={{ value }}
+{% endfor %}
+{% set middlewares = middlewares + [piu_tracker_identifier + '-add-request-headers'] %}
+{% endif %}
+
+{% if piu_tracker_container_labels_traefik_additional_response_headers.keys() | length > 0 %}
+{% for name, value in piu_tracker_container_labels_traefik_additional_response_headers.items() %}
+traefik.http.middlewares.{{ piu_tracker_identifier }}-add-response-headers.headers.customresponseheaders.{{ name }}={{ value }}
+{% endfor %}
+{% set middlewares = middlewares + [piu_tracker_identifier + '-add-response-headers'] %}
+{% endif %}
+
+{% set middlewares = middlewares + piu_tracker_container_labels_traefik_additional_middlewares_custom %}
+
+traefik.http.routers.{{ piu_tracker_identifier }}.rule={{ piu_tracker_container_labels_traefik_rule }}
+{% if piu_tracker_container_labels_traefik_priority | int > 0 %}
+traefik.http.routers.{{ piu_tracker_identifier }}.priority={{ piu_tracker_container_labels_traefik_priority }}
+{% endif %}
+traefik.http.routers.{{ piu_tracker_identifier }}.service={{ piu_tracker_identifier }}
+{% if middlewares | length > 0 %}
+traefik.http.routers.{{ piu_tracker_identifier }}.middlewares={{ middlewares | join(',') }}
+{% endif %}
+traefik.http.routers.{{ piu_tracker_identifier }}.entrypoints={{ piu_tracker_container_labels_traefik_entrypoints }}
+traefik.http.routers.{{ piu_tracker_identifier }}.tls={{ piu_tracker_container_labels_traefik_tls | to_json }}
+{% if piu_tracker_container_labels_traefik_tls %}
+traefik.http.routers.{{ piu_tracker_identifier }}.tls.certResolver={{ piu_tracker_container_labels_traefik_tls_certResolver }}
+{% endif %}
+
+traefik.http.services.{{ piu_tracker_identifier }}.loadbalancer.server.port={{ piu_tracker_container_http_port }}
+{% endif %}
+
+{% for arg in piu_tracker_container_labels_additional_labels %}
+{{ arg }}
+{% endfor %}
