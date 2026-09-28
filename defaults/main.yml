@@ -19,7 +19,7 @@ piu_tracker_config_path: "{{ piu_tracker_base_path }}/config"
 piu_tracker_data_path: "{{ piu_tracker_base_path }}/data"
 
 # renovate: datasource=docker depName=ghcr.io/spatteriight/pump-it-up-tracker versioning=semver
-piu_tracker_version: 1.1.0
+piu_tracker_version: 1.1.1
 
 piu_tracker_uid: ""
 piu_tracker_gid: ""
