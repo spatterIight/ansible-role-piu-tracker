@@ -120,6 +120,8 @@
               - piu_tracker_molecule_api.stats.highest_single == 15
               # D13 is a stage break, so no double has been cleared.
               - piu_tracker_molecule_api.stats.highest_double == 0
+              # The D13 stage break and the S15 fail with no score.
+              - piu_tracker_molecule_api.stats.fails == 2
             fail_msg: "The application loaded {{ piu_tracker_molecule_api.stats }} for player {{ piu_tracker_molecule_api.player }}"
             success_msg: "The application loaded all {{ piu_tracker_scores | length }} plays"
 
@@ -142,6 +144,27 @@
               - not piu_tracker_molecule_conflict.charts[1].cleared
             fail_msg: "Unexpected songs: {{ piu_tracker_molecule_api.songs }}"
             success_msg: "Personal bests, dates and plates came through intact"
+
+        # Conflict S15 was cleared on 2026-09-20 and failed with no score on
+        # 2026-09-28. The fail is loaded, but is neither a clear nor a new best.
+        - name: Assert the failed play with no score was loaded without counting as a clear or personal best
+          vars:
+            piu_tracker_molecule_s15: "{{ piu_tracker_molecule_conflict.charts[0] }}"
+            piu_tracker_molecule_s15_fail: "{{ piu_tracker_molecule_conflict.charts[0].history | last }}"
+          ansible.builtin.assert:
+            that:
+              - piu_tracker_molecule_s15.plays == 2
+              - piu_tracker_molecule_s15.clears == 1
+              - piu_tracker_molecule_s15.fails == 1
+              - piu_tracker_molecule_s15.cleared
+              - piu_tracker_molecule_s15.best.score == 880430
+              - piu_tracker_molecule_s15_fail.date == '2026-09-28T20:10'
+              - piu_tracker_molecule_s15_fail.score is none
+              - piu_tracker_molecule_s15_fail.grade is none
+              - piu_tracker_molecule_s15_fail.broken
+              - not piu_tracker_molecule_s15_fail.pb
+            fail_msg: "Unexpected Conflict S15: {{ piu_tracker_molecule_conflict.charts[0] }}"
+            success_msg: "The failed play is loaded, and the S15 clear and best stay as they were"
 
         # With fetching disabled, art only comes from `piu_tracker_custom_art_path`.
         - name: Assert jacket art comes from the custom art directory
@@ -302,7 +325,7 @@
               ansible.builtin.assert:
                 that:
                   - ansible_failed_task.name == 'Ensure pump-it-up-tracker data file is installed'
-                  - "'scores[4] (Big Daddy S11): score 938204 does not match' in ansible_failed_result.stderr | default('')"
+                  - "'scores[' ~ piu_tracker_scores | length ~ '] (Big Daddy S11): score 938204 does not match' in ansible_failed_result.stderr | default('')"
                   - "'octal' in ansible_failed_result.stderr | default('')"
                 fail_msg: "Unexpected failure in {{ ansible_failed_task.name }}: {{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default(ansible_failed_result)) }}"
                 success_msg: "The role refused the data file: {{ ansible_failed_result.stderr }}"
