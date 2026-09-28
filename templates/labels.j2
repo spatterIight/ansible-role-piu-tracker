@@ -20,8 +20,8 @@ the slashless form to it), so, unlike most services, the prefix is not stripped 
 #}
 {% set middlewares = [] %}
 
-{% if piu_tracker_container_labels_middleware_basic_auth_enabled %}
-traefik.http.middlewares.{{ piu_tracker_identifier }}-basic-auth.basicauth.users={{ piu_tracker_container_labels_middleware_basic_auth_users }}
+{% if piu_tracker_container_labels_traefik_middleware_basic_auth_enabled %}
+traefik.http.middlewares.{{ piu_tracker_identifier }}-basic-auth.basicauth.users={{ piu_tracker_container_labels_traefik_middleware_basic_auth_users }}
 {% set middlewares = middlewares + [piu_tracker_identifier + '-basic-auth'] %}
 {% endif %}
 

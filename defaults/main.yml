@@ -83,6 +83,10 @@ piu_tracker_container_labels_traefik_priority: 0
 piu_tracker_container_labels_traefik_entrypoints: web-secure
 piu_tracker_container_labels_traefik_tls: "{{ piu_tracker_container_labels_traefik_entrypoints != 'web' }}"
 piu_tracker_container_labels_traefik_tls_certResolver: default  # noqa var-naming
+piu_tracker_container_labels_traefik_middleware_basic_auth_enabled: false
+# A comma-separated list of `user:hashed-password` entries (e.g. generated with `htpasswd -nB USER`).
+# See: https://doc.traefik.io/traefik/reference/routing-configuration/http/middlewares/basicauth/
+piu_tracker_container_labels_traefik_middleware_basic_auth_users: ""
 
 # Controls which additional headers to attach to all HTTP requests.
 # To add your own custom request headers, use `piu_tracker_container_labels_traefik_additional_request_headers_custom`
@@ -103,14 +107,6 @@ piu_tracker_container_labels_traefik_additional_response_headers_auto: |
     | combine ({'Strict-Transport-Security': piu_tracker_http_header_strict_transport_security} if piu_tracker_http_header_strict_transport_security and piu_tracker_container_labels_traefik_tls else {})
   }}
 piu_tracker_container_labels_traefik_additional_response_headers_custom: {}
-
-# Controls whether Basic Authentication is enabled in front of the tracker.
-piu_tracker_container_labels_middleware_basic_auth_enabled: false
-
-# The users allowed through Basic Authentication, as a comma-separated list of `user:hashed-password`
-# entries (e.g. generated with `htpasswd -nB USER`).
-# See: https://doc.traefik.io/traefik/middlewares/http/basicauth/#users
-piu_tracker_container_labels_middleware_basic_auth_users: ""
 
 # piu_tracker_container_labels_additional_labels contains a multiline string with additional labels to add to the container label file.
 # See `../templates/labels.j2` for details.
