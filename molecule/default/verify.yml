@@ -296,14 +296,16 @@
                 msg: The role installed a data file whose score does not match its judgments.
 
           rescue:
+            # The copy module reports "failed to validate" and passes the
+            # validator's own explanation on as stderr.
             - name: Assert the role was stopped by the application's own validation
               ansible.builtin.assert:
                 that:
                   - ansible_failed_task.name == 'Ensure pump-it-up-tracker data file is installed'
-                  - "'scores[4] (Big Daddy S11): score 938204 does not match' in ansible_failed_result.msg"
-                  - "'octal' in ansible_failed_result.msg"
-                fail_msg: "Unexpected failure in {{ ansible_failed_task.name }}: {{ ansible_failed_result.msg | default(ansible_failed_result) }}"
-                success_msg: "The role refused the data file: {{ ansible_failed_result.msg }}"
+                  - "'scores[4] (Big Daddy S11): score 938204 does not match' in ansible_failed_result.stderr | default('')"
+                  - "'octal' in ansible_failed_result.stderr | default('')"
+                fail_msg: "Unexpected failure in {{ ansible_failed_task.name }}: {{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default(ansible_failed_result)) }}"
+                success_msg: "The role refused the data file: {{ ansible_failed_result.stderr }}"
 
         - name: Record the data file and service after the attempt
           ansible.builtin.stat:
