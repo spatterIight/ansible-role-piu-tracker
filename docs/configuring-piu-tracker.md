@@ -73,7 +73,7 @@ piu_tracker_scores:
 
 Such an entry may only have `song`, `chart`, `date`, `kcal` and `note`. It shows as a failed attempt, and never counts as a clear or a personal best.
 
-Plays are from Pump It Up Phoenix unless they say otherwise. A play from Prime 2 or XX names its version with `version` (`prime2` or `xx`; `phoenix` is the default):
+Plays are from Pump It Up Phoenix unless they say otherwise. A play from Phoenix 2, Prime 2 or XX names its version with `version` (`phoenix2`, `prime2` or `xx`; `phoenix` is the default):
 
 ```yaml
 piu_tracker_scores:
@@ -85,7 +85,7 @@ piu_tracker_scores:
     grade: S                   # optional, shown as logged; there are no plates
 ```
 
-Scores and grades are kept as each version's result screen showed them, and a chart of one version is a different chart from the same level of another. The front page's headline stats cover the newest version you have played. To follow a chart into a newer version, possibly at another level, link the two in the song's details (see below). See the project's [game versions documentation](https://github.com/spatterIight/pump-it-up-tracker/blob/main/docs/game-versions.md) for what each version checks and how personal bests carry across a link.
+A Phoenix 2 play is logged just like a Phoenix one. Scores and grades are kept as each version's result screen showed them, and a chart of one version is a different chart from the same level of another. The front page's headline stats cover the newest version you have played. A Phoenix chart and the same steps in Phoenix 2 are linked by the application itself, so their personal bests carry over. To follow a chart from Prime 2 or XX into a newer version, possibly at another level, link the two in the song's details (see below). See the project's [game versions documentation](https://github.com/spatterIight/pump-it-up-tracker/blob/main/docs/game-versions.md) for what each version checks and how personal bests carry across a link.
 
 >[!IMPORTANT]
 > Write numbers without the leading zeros the cabinet shows: YAML reads `031` as the octal number 25. When `judgments` and `max_combo` are both given, the score is checked against them, which catches such mistakes.
