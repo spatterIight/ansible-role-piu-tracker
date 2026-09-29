@@ -52,7 +52,7 @@ What it checks:
 
 - The container becomes `healthy`. The image's healthcheck only finds the non-default port through the environment file the role renders.
 - `/api/data.json` reports exactly the plays, songs, personal bests, plates and dates from the inventory, and the version of the application matches `piu_tracker_version`.
-- Jacket art comes from `piu_tracker_custom_art_path`, and songs without art get a placeholder. Fetching from the internet is off, so the scenario does not depend on the art sources being reachable.
+- Jacket art comes from `piu_tracker_custom_art_path` before the jackets built into the application, other songs get their built-in jacket, and a song whose own image URL is not downloaded gets a placeholder. Fetching from the internet is off, so the scenario does not depend on the art sources being reachable.
 - Song pages link under the path prefix, and the slashless prefix redirects.
 - The container runs with a read-only root filesystem, no capabilities and the configured user. The data file is mounted read-only.
 - Running the role with a mistyped result screen (`great: 031`, which YAML reads as octal) fails at the application's own validation with a precise message. The installed data file and the running service are left untouched.

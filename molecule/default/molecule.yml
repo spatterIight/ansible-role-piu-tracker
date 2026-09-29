@@ -85,12 +85,18 @@ provisioner:
 
         piu_tracker_player_name: MOLECULE
 
+        # All three songs have a jacket built into the application. Big Daddy's
+        # own image in `piu_tracker_custom_art_path` takes precedence over it,
+        # Conflict gets it, and Le Grand Bleu's own image URL takes precedence
+        # over it but is never downloaded, since fetching is off.
         piu_tracker_songs:
           Big Daddy:
             image: big-daddy.svg
           Conflict:
             artist: Siromaru + Cranky
             bpm: 160
+          Le Grand Bleu:
+            image: https://art.molecule.invalid/le-grand-bleu.png
 
         # Written the way a person would: unquoted dates and times (which YAML
         # turns into date objects), a score with the cabinet's leading zero in
