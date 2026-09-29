@@ -85,7 +85,7 @@ piu_tracker_scores:
     grade: S                   # optional, shown as logged; there are no plates
 ```
 
-Scores and grades are kept as each version's result screen showed them, and a chart of one version is a different chart from the same level of another. The front page's headline stats cover the newest version you have played. To follow a chart into a newer version, possibly at another level, link the two in the song's details (see below). See the project's [README](https://github.com/spatterIight/pump-it-up-tracker#game-versions) for what each version checks and how personal bests carry across a link.
+Scores and grades are kept as each version's result screen showed them, and a chart of one version is a different chart from the same level of another. The front page's headline stats cover the newest version you have played. To follow a chart into a newer version, possibly at another level, link the two in the song's details (see below). See the project's [game versions documentation](https://github.com/spatterIight/pump-it-up-tracker/blob/main/docs/game-versions.md) for what each version checks and how personal bests carry across a link.
 
 >[!IMPORTANT]
 > Write numbers without the leading zeros the cabinet shows: YAML reads `031` as the octal number 25. When `judgments` and `max_combo` are both given, the score is checked against them, which catches such mistakes.
@@ -122,7 +122,7 @@ piu_tracker_songs:
       - {prime2: S7, phoenix: S7}
 ```
 
-`lineages` links a song's charts that are the same step chart in different game versions, possibly at different levels: each maps a version to the chart as that version labels it. The song page then shows them as one chart. See the project's [README](https://github.com/spatterIight/pump-it-up-tracker#chart-continuity) for the details.
+`lineages` links a song's charts that are the same step chart in different game versions, possibly at different levels: each maps a version to the chart as that version labels it. The song page then shows them as one chart. See the project's [documentation](https://github.com/spatterIight/pump-it-up-tracker/blob/main/docs/game-versions.md#chart-continuity) for the details.
 
 ### Configure jacket art (optional)
 
@@ -141,7 +141,7 @@ There are some additional things you may wish to configure about the service.
 Take a look at:
 
 - [`defaults/main.yml`](../defaults/main.yml) for some variables that you can customize via your `vars.yml` file. You can override settings (even those that don't have dedicated playbook variables) using the `piu_tracker_environment_variables_additional_variables` variable
-- The pump-it-up-tracker [README](https://github.com/spatterIight/pump-it-up-tracker#configuration) for all the environment variables it supports.
+- The pump-it-up-tracker [configuration documentation](https://github.com/spatterIight/pump-it-up-tracker/blob/main/docs/configuration.md) for all the environment variables it supports.
 
 ## Installing
 
