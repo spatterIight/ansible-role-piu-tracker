@@ -126,9 +126,11 @@ piu_tracker_songs:
 
 ### Configure jacket art (optional)
 
-Jacket art is found automatically on [PIU Scores](https://piuscores.arroweclip.se) and the [PIU Fandom wiki](https://pumpitup.fandom.com), and cached in the data path. Songs without any show a generated placeholder.
+The application has jackets for about 1,080 songs built in, from [PIU Scores](https://piuscores.arroweclip.se), and finds them by title. Songs it has none for are looked up on PIU Scores and the [PIU Fandom wiki](https://pumpitup.fandom.com), and cached in the data path. Songs without any show a generated placeholder.
 
-To use your own images instead, set `piu_tracker_custom_art_path` to a directory on the server holding them, named after the song (e.g. `big-daddy.png`) or referred to by a song's `image`. To stop downloading art altogether, add the following configuration to your `vars.yml` file:
+To use your own images instead, set `piu_tracker_custom_art_path` to a directory on the server holding them, named after the song (e.g. `big-daddy.png`) or referred to by a song's `image`. They, and a song's `image` URL, take precedence over the built-in jackets. To pick a built-in jacket that a song's title does not find, set its `image` to the jacket's PIU Scores URL (`https://piuimages.arroweclip.se/songs/<name>.png`): it is served without downloading anything. See the project's [documentation](https://github.com/spatterIight/pump-it-up-tracker/blob/main/docs/configuration.md#jacket-art) for how titles are matched.
+
+To stop downloading art altogether, add the following configuration to your `vars.yml` file:
 
 ```yaml
 piu_tracker_art_fetch_enabled: false

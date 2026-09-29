@@ -195,16 +195,19 @@
             fail_msg: "Unexpected Conflict S15: {{ piu_tracker_molecule_conflict.charts[0] }}"
             success_msg: "The failed play is loaded, and the S15 clear and best stay as they were"
 
-        # With fetching disabled, art only comes from `piu_tracker_custom_art_path`.
-        - name: Assert jacket art comes from the custom art directory
+        # With fetching disabled, art comes from `piu_tracker_custom_art_path`
+        # and the jackets built into the application, and nothing is downloaded.
+        - name: Assert jacket art comes from the custom art directory and the built-in jackets
           ansible.builtin.assert:
             that:
               - piu_tracker_molecule_big_daddy.art == 'image'
-              - piu_tracker_molecule_conflict.art == 'placeholder'
-              - piu_tracker_molecule_api.art.resolved == 1
+              - piu_tracker_molecule_conflict.art == 'image'
+              - piu_tracker_molecule_le_grand_bleu.art == 'placeholder'
+              - piu_tracker_molecule_api.art.resolved == 2
               - piu_tracker_molecule_api.art.pending == 0
+              - piu_tracker_molecule_api.art.missing == 1
             fail_msg: "Unexpected art status: {{ piu_tracker_molecule_api.art }}"
-            success_msg: "Custom art is used, and the song without any shows a placeholder"
+            success_msg: "Custom and built-in art are used, and the song whose image URL is not downloaded shows a placeholder"
 
         - name: Retrieve the custom jacket art through the application
           ansible.builtin.uri:
@@ -212,11 +215,24 @@
             return_content: true
           register: piu_tracker_art
 
+        # Big Daddy also has a built-in jacket, so this shows the custom image
+        # taking precedence over it.
         - name: Assert the custom jacket art is served
           ansible.builtin.assert:
             that: piu_tracker_molecule_custom_art_marker in piu_tracker_art.content
             fail_msg: "/art/big-daddy did not serve the custom image"
-            success_msg: "The custom image is served for Big Daddy"
+            success_msg: "The custom image is served for Big Daddy, over its built-in jacket"
+
+        - name: Retrieve a built-in jacket through the application
+          ansible.builtin.uri:
+            url: "{{ piu_tracker_molecule_app_url }}/art/conflict"
+          register: piu_tracker_builtin_art
+
+        - name: Assert the built-in jacket is served
+          ansible.builtin.assert:
+            that: piu_tracker_builtin_art.content_type == 'image/webp'
+            fail_msg: "/art/conflict served {{ piu_tracker_builtin_art.content_type }}, expected the built-in WebP jacket"
+            success_msg: "The built-in jacket is served for Conflict"
 
         - name: Retrieve a song page
           ansible.builtin.uri:

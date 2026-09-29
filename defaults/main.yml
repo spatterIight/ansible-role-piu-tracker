@@ -19,7 +19,7 @@ piu_tracker_config_path: "{{ piu_tracker_base_path }}/config"
 piu_tracker_data_path: "{{ piu_tracker_base_path }}/data"
 
 # renovate: datasource=docker depName=ghcr.io/spatteriight/pump-it-up-tracker versioning=semver
-piu_tracker_version: 1.2.0
+piu_tracker_version: 1.3.0
 
 piu_tracker_uid: ""
 piu_tracker_gid: ""
@@ -261,6 +261,9 @@ piu_tracker_scores: []
 # Optional details about songs, keyed by title (matched case-insensitively).
 #
 # `image` is either an image URL, or the name of a file in `piu_tracker_custom_art_path`.
+# Either one takes precedence over the jacket built into the application. A PIU Scores
+# jacket URL (`https://piuimages.arroweclip.se/songs/<name>.png`) picks one of the
+# built-in jackets, without downloading anything.
 #
 # `lineages` links the song's charts that are the same step chart in different
 # game versions, maybe at different levels. Each is a mapping from version to
@@ -310,11 +313,12 @@ piu_tracker_data_validation_command: >-
   validate /tmp/tracker.json
 
 # Controls whether jacket art is downloaded from the internet.
-# When disabled, only images in `piu_tracker_custom_art_path` are used and
-# every other song shows a generated placeholder.
+# The application has jackets for about 1,080 songs built in, and uses them
+# before looking online. When disabled, songs with neither a built-in jacket nor
+# an image in `piu_tracker_custom_art_path` show a generated placeholder.
 piu_tracker_art_fetch_enabled: true
 
-# The online sources to look for jacket art in, in order.
+# The online sources to look for jacket art in, in order, for songs without a built-in jacket.
 # Supported values: `piuscores` (https://piuscores.arroweclip.se) and `fandom` (https://pumpitup.fandom.com)
 piu_tracker_art_sources:
   - piuscores
@@ -322,6 +326,7 @@ piu_tracker_art_sources:
 
 # A directory on the host with your own jacket images, mounted read-only into the container.
 # Name files after the song (`big-daddy.png`), or refer to them with a song's `image`.
+# They take precedence over the jackets built into the application.
 # Leave empty to not mount anything.
 piu_tracker_custom_art_path: ""
 
